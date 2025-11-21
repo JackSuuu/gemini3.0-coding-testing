@@ -138,6 +138,11 @@
             justify-content: space-between;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
         .current-view {
             font-size: 14px;
             color: var(--text-primary);
@@ -236,6 +241,104 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #3E4044;
         }
+
+        /* Sidebar Toggle Button */
+        .toggle-sidebar-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            margin-right: 12px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-sidebar-btn:hover {
+            background-color: var(--item-hover);
+            color: var(--text-primary);
+        }
+
+        /* Sidebar Hidden State */
+        body.sidebar-hidden .sidebar {
+            display: none;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+                padding: 12px;
+                overflow-x: auto;
+            }
+
+            .brand {
+                margin-bottom: 12px;
+            }
+
+            .section-title {
+                display: none;
+            }
+
+            .nav-list {
+                display: flex;
+                gap: 8px;
+                padding-bottom: 4px;
+            }
+
+            .nav-item {
+                margin-bottom: 0;
+                flex-shrink: 0;
+            }
+
+            .nav-button {
+                white-space: nowrap;
+                background-color: var(--item-hover);
+                border: 1px solid var(--border-color);
+                padding: 6px 12px;
+            }
+            
+            .nav-button.active {
+                background-color: var(--accent-color);
+                color: white;
+                border-color: var(--accent-color);
+            }
+            
+            .nav-button.active::before {
+                background-color: white;
+            }
+
+            .header {
+                padding: 0 16px;
+                height: 50px;
+            }
+            
+            .frame-container {
+                padding: 0;
+            }
+            
+            iframe {
+                border-radius: 0;
+                border: none;
+                border-top: 1px solid var(--border-color);
+            }
+            
+            .readme-content {
+                border-radius: 0;
+                border: none;
+                padding: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -288,7 +391,14 @@
 
     <main class="main-content">
         <header class="header">
-            <div class="current-view" id="view-title">Project README</div>
+            <div class="header-left">
+                <button class="toggle-sidebar-btn" onclick="toggleSidebar()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                </button>
+                <div class="current-view" id="view-title">Project README</div>
+            </div>
             <div class="status-badge">Gemini 3.0 Preview</div>
         </header>
         <div class="frame-container">
@@ -350,6 +460,10 @@
                 btn.classList.remove('active');
             });
             button.classList.add('active');
+        }
+
+        function toggleSidebar() {
+            document.body.classList.toggle('sidebar-hidden');
         }
     </script>
 </body>
