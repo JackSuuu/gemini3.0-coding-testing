@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spacegram</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        ig: {
+                            bg: '#000000',
+                            secondary: '#121212',
+                            border: '#262626',
+                            text: '#F5F5F5',
+                            textGray: '#A8A8A8',
+                            blue: '#0095F6',
+                            button: '#363636'
+                        }
+                    },
+                    animation: {
+                        'scale-in': 'scaleIn 0.2s ease-out',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'heart-burst': 'heartBurst 0.8s ease-out forwards',
+                        'spin': 'spin 1s linear infinite'
+                    },
+                    keyframes: {
+                        scaleIn: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        heartBurst: {
+                            '0%': { transform: 'scale(0)', opacity: '0' },
+                            '15%': { transform: 'scale(1.2)', opacity: '1' },
+                            '30%': { transform: 'scale(0.9)' },
+                            '45%': { transform: 'scale(1.1)' },
+                            '80%': { opacity: '1' },
+                            '100%': { transform: 'scale(1)', opacity: '0' }
+                        },
+                        spin: {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 0px; /* Hidden for aesthetic, like mobile */
+        }
+        body {
+            background-color: #000000;
+            color: #F5F5F5;
+        }
+        .story-ring {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            padding: 2px;
+            border-radius: 50%;
+        }
+        .story-ring.seen {
+            background: #262626;
+        }
+        .like-heart-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            pointer-events: none;
+            opacity: 0;
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 */
+            height: 0;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col md:flex-row overflow-hidden font-sans text-sm">
+
+    <!-- LEFT SIDEBAR (Desktop) -->
+    <aside class="hidden md:flex flex-col w-64 h-full border-r border-ig-border px-4 pt-8 pb-5 bg-black z-20 justify-between">
+        <div>
+            <!-- Logo -->
+            <div class="mb-8 px-2">
+                <h1 class="text-2xl font-semibold tracking-tight italic" style="font-family: 'Brush Script MT', cursive;">Spacegram</h1>
+            </div>
+
+            <!-- Nav Items -->
+            <nav class="space-y-2">
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group font-bold">
+                    <i class="fas fa-home text-xl w-8 group-hover:scale-105 transition-transform"></i>
+                    <span>Home</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <i class="fas fa-search text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                    <span>Search</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <i class="far fa-compass text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                    <span>Explore</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <i class="fas fa-film text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                    <span>Reels</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <i class="far fa-paper-plane text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                    <span>Messages</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <i class="far fa-heart text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                    <span>Notifications</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <i class="far fa-plus-square text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                    <span>Create</span>
+                </a>
+                <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                    <div class="w-6 h-6 rounded-full bg-gray-700 overflow-hidden mr-3 border border-gray-500">
+                        <img src="https://api.nasa.gov/assets/img/favicon-192.png" class="w-full h-full object-cover">
+                    </div>
+                    <span>Profile</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Bottom Menu -->
+        <div class="space-y-2">
+             <a href="#" class="flex items-center p-3 rounded-lg hover:bg-ig-secondary transition-colors group">
+                <i class="fas fa-bars text-xl w-8 group-hover:scale-105 transition-transform text-ig-text"></i>
+                <span>More</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex justify-center bg-black overflow-y-auto h-full relative scroll-smooth" id="main-scroll">
+        <div class="w-full max-w-[630px] pt-4 md:pt-8 px-0 md:px-4 pb-20">
+            
+            <!-- STORIES TRAY -->
+            <div class="flex space-x-4 overflow-x-auto pb-4 mb-4 scrollbar-hide px-4 md:px-0" id="stories-tray">
+                <!-- Generated by JS -->
+                <div class="flex flex-col items-center space-y-1 min-w-[66px] cursor-pointer">
+                    <div class="story-ring p-[2px] rounded-full">
+                        <div class="w-14 h-14 rounded-full bg-black p-[2px]">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/220px-The_Blue_Marble_%28remastered%29.jpg" class="w-full h-full rounded-full object-cover">
+                        </div>
+                    </div>
+                    <span class="text-xs text-ig-text overflow-hidden w-16 text-center text-ellipsis whitespace-nowrap">Your Story</span>
+                </div>
+            </div>
+
+            <!-- FEED CONTAINER -->
+            <div id="feed-container" class="flex flex-col gap-6">
+                <!-- Initial Loading Skeleton -->
+                <div class="w-full animate-pulse" id="initial-skeleton">
+                    <div class="flex items-center mb-2 px-4 md:px-0">
+                        <div class="w-8 h-8 bg-ig-secondary rounded-full mr-2"></div>
+                        <div class="h-3 bg-ig-secondary rounded w-24"></div>
+                    </div>
+                    <div class="w-full aspect-square bg-ig-secondary"></div>
+                </div>
+            </div>
+
+            <!-- Infinite Scroll Loading Indicator -->
+            <div id="loading-more" class="py-8 flex justify-center hidden">
+                <i class="fas fa-spinner animate-spin text-ig-textGray text-2xl"></i>
+            </div>
+
+            <!-- End of Content Marker -->
+            <div class="py-8 text-center text-ig-textGray text-sm hidden" id="end-message">
+                <i class="fas fa-check-circle text-4xl mb-4 text-ig-border"></i>
+                <p>You're all caught up</p>
+            </div>
+            
+            <!-- Sentinel for Intersection Observer -->
+            <div id="scroll-sentinel" class="h-4 w-full"></div>
+
+        </div>
+    </main>
+
+    <!-- RIGHT SIDEBAR (Desktop Suggestions) -->
+    <aside class="hidden lg:block w-[380px] pl-10 pr-6 pt-8 z-10">
+        <!-- User Switcher -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center cursor-pointer">
+                <div class="w-11 h-11 rounded-full bg-gray-800 mr-3 overflow-hidden">
+                    <img src="https://api.nasa.gov/assets/img/favicon-192.png" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <div class="font-semibold text-sm">guest_explorer</div>
+                    <div class="text-ig-textGray text-sm">Cosmic Traveler</div>
+                </div>
+            </div>
+            <button class="text-xs font-semibold text-ig-blue hover:text-white">Switch</button>
+        </div>
+
+        <div class="flex justify-between mb-4">
+            <span class="text-ig-textGray font-semibold text-sm">Suggested for you</span>
+            <button class="text-xs font-semibold text-white hover:text-gray-300">See All</button>
+        </div>
+
+        <!-- Suggestions List -->
+        <div class="space-y-4" id="suggestions-list">
+            <!-- Populated by JS -->
+        </div>
+
+        <div class="mt-8 text-xs text-ig-textGray space-y-4">
+            <p>About · Help · Press · API · Jobs · Privacy · Terms · Locations · Language · Meta Verified</p>
+            <p>© 2025 SPACEGRAM FROM NASA API</p>
+        </div>
+    </aside>
+
+    <!-- BOTTOM NAV (Mobile) -->
+    <nav class="md:hidden fixed bottom-0 w-full bg-black border-t border-ig-border flex justify-around items-center h-12 z-50 px-2">
+        <a href="#" class="text-2xl p-2"><i class="fas fa-home"></i></a>
+        <a href="#" class="text-2xl p-2 text-ig-textGray"><i class="fas fa-search"></i></a>
+        <a href="#" class="text-2xl p-2 text-ig-textGray"><i class="far fa-plus-square"></i></a>
+        <a href="#" class="text-2xl p-2 text-ig-textGray"><i class="fas fa-film"></i></a>
+        <a href="#" class="p-2">
+            <div class="w-6 h-6 rounded-full bg-gray-700 overflow-hidden border border-white">
+                 <img src="https://api.nasa.gov/assets/img/favicon-192.png" class="w-full h-full object-cover">
+            </div>
+        </a>
+    </nav>
+
+    <script>
+        const API_KEY = 'fKRRLlLxkNSqVWIdsm1LwGXSFOgpgOOmmRhf774s';
+        const PLACEHOLDER_AVATAR = 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png';
+        
+        // Static Data for Space Theme
+        const spaceUsers = [
+            { id: 'nasa', name: 'nasa', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg' },
+            { id: 'hubble', name: 'hubble_telescope', img: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/HST-SM4.jpeg' },
+            { id: 'webb', name: 'james_webb', img: 'https://upload.wikimedia.org/wikipedia/commons/0/0b/James_Webb_Space_Telescope_Mirror37.jpg' },
+            { id: 'mars', name: 'mars_curiosity', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Curiosity_Self-Portrait_at_%27Big_Sky%27_Drill_Site.jpg/220px-Curiosity_Self-Portrait_at_%27Big_Sky%27_Drill_Site.jpg' },
+            { id: 'iss', name: 'iss_station', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/International_Space_Station_after_undocking_of_STS-132.jpg/220px-International_Space_Station_after_undocking_of_STS-132.jpg' },
+            { id: 'spacex', name: 'spacex_official', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/SpaceX_Logo_Black.png/220px-SpaceX_Logo_Black.png' },
+            { id: 'esa', name: 'europeanspaceagency', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/European_Space_Agency_logo.svg/220px-European_Space_Agency_logo.svg' }
+        ];
+
+        const storiesData = [
+            { name: 'mars_rover', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/220px-OSIRIS_Mars_true_color.jpg' },
+            { name: 'jupiter_official', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg/220px-Jupiter_and_its_shrunken_Great_Red_Spot.jpg' },
+            { name: 'saturn_rings', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/220px-Saturn_during_Equinox.jpg' },
+            { name: 'pluto_love', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Pluto_in_True_Color_-_High_Res.jpg/220px-Pluto_in_True_Color_-_High_Res.jpg' },
+            { name: 'neptune_blue', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Neptune_Full.jpg/220px-Neptune_Full.jpg' },
+            { name: 'sun_star', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/220px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg' }
+        ];
+
+        // DOM Elements
+        const feedContainer = document.getElementById('feed-container');
+        const storiesTray = document.getElementById('stories-tray');
+        const suggestionsList = document.getElementById('suggestions-list');
+        const endMessage = document.getElementById('end-message');
+        const loadingIndicator = document.getElementById('loading-more');
+        const scrollSentinel = document.getElementById('scroll-sentinel');
+        const initialSkeleton = document.getElementById('initial-skeleton');
+
+        let isLoading = false;
+
+        // Initialize
+        async function init() {
+            renderStories();
+            renderSuggestions();
+            await fetchAPODs(true); // Initial load
+            setupInfiniteScroll();
+        }
+
+        function setupInfiniteScroll() {
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && !isLoading) {
+                    fetchAPODs(false); // Load more
+                }
+            }, { root: null, rootMargin: '100px', threshold: 0.1 });
+            
+            observer.observe(scrollSentinel);
+        }
+
+        function renderStories() {
+            storiesData.forEach(story => {
+                const html = `
+                    <div class="flex flex-col items-center space-y-1 min-w-[66px] cursor-pointer group">
+                        <div class="story-ring p-[2px] rounded-full group-hover:scale-105 transition-transform">
+                            <div class="w-14 h-14 rounded-full bg-black p-[2px]">
+                                <img src="${story.img}" class="w-full h-full rounded-full object-cover" onerror="this.src='${PLACEHOLDER_AVATAR}'">
+                            </div>
+                        </div>
+                        <span class="text-xs text-ig-text overflow-hidden w-16 text-center text-ellipsis whitespace-nowrap">${story.name}</span>
+                    </div>
+                `;
+                storiesTray.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        function renderSuggestions() {
+            const suggestions = spaceUsers.slice(2, 7); 
+            suggestions.forEach(user => {
+                const html = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-gray-800 mr-3 overflow-hidden">
+                                <img src="${user.img}" class="w-full h-full object-cover" onerror="this.src='${PLACEHOLDER_AVATAR}'">
+                            </div>
+                            <div>
+                                <div class="font-semibold text-sm hover:underline cursor-pointer">${user.name}</div>
+                                <div class="text-xs text-ig-textGray">Followed by nasa + 2 more</div>
+                            </div>
+                        </div>
+                        <button class="text-xs font-semibold text-ig-blue hover:text-white" onclick="toggleFollow(this)">Follow</button>
+                    </div>
+                `;
+                suggestionsList.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        function toggleFollow(btn) {
+            if (btn.innerText === 'Follow') {
+                btn.innerText = 'Following';
+                btn.classList.remove('text-ig-blue');
+                btn.classList.add('text-ig-textGray');
+            } else {
+                btn.innerText = 'Follow';
+                btn.classList.add('text-ig-blue');
+                btn.classList.remove('text-ig-textGray');
+            }
+        }
+
+        async function fetchAPODs(isInitial) {
+            if (isLoading) return;
+            isLoading = true;
+
+            if (!isInitial) {
+                loadingIndicator.classList.remove('hidden');
+            }
+
+            try {
+                // Fetch 5 random APODs at a time
+                const count = isInitial ? 5 : 5;
+                const response = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${API_KEY}&count=${count}`);
+                const data = await response.json();
+
+                // Remove initial skeleton on first load
+                if (isInitial && initialSkeleton) {
+                    initialSkeleton.remove();
+                }
+
+                data.forEach(item => {
+                    createPost(item);
+                });
+
+            } catch (error) {
+                console.error("Error fetching NASA data:", error);
+                if (isInitial) {
+                     feedContainer.innerHTML = `<div class="text-center p-4 text-red-500">Failed to load space data. Check internet or API limits.</div>`;
+                }
+            } finally {
+                isLoading = false;
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function handleImageError(img) {
+            // Replace broken image with a placeholder div
+            const container = img.parentElement;
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-[400px] bg-ig-secondary text-ig-textGray p-4 text-center">
+                    <i class="fas fa-exclamation-triangle text-3xl mb-2 opacity-50"></i>
+                    <p>Image unavailable</p>
+                    <p class="text-xs opacity-50 mt-1">Source URL failed to load</p>
+                </div>
+            `;
+        }
+
+        function createPost(item) {
+            const randomUser = spaceUsers[Math.floor(Math.random() * spaceUsers.length)];
+            const isVideo = item.media_type === 'video';
+            const likes = Math.floor(Math.random() * 50000) + 1000;
+
+            const postHTML = `
+                <article class="border-b border-ig-border pb-6 md:pb-8 fade-in">
+                    <!-- Post Header -->
+                    <div class="flex items-center justify-between mb-3 px-4 md:px-0">
+                        <div class="flex items-center cursor-pointer">
+                            <div class="w-8 h-8 rounded-full bg-gray-800 mr-2 overflow-hidden border border-ig-border">
+                                <img src="${randomUser.img}" class="w-full h-full object-cover" onerror="this.src='${PLACEHOLDER_AVATAR}'">
+                            </div>
+                            <div class="text-sm font-semibold hover:opacity-70">${randomUser.name}</div>
+                            <span class="text-ig-textGray text-xs mx-1">•</span>
+                            <span class="text-ig-textGray text-xs">${item.date}</span>
+                        </div>
+                        <button class="text-ig-text hover:opacity-50"><i class="fas fa-ellipsis-h"></i></button>
+                    </div>
+
+                    <!-- Post Media -->
+                    <div class="relative w-full bg-ig-secondary rounded-sm overflow-hidden border border-ig-border md:rounded-md group min-h-[300px]" ondblclick="handleDoubleTap(this)">
+                        ${isVideo 
+                            ? `<div class="video-container"><iframe src="${item.url}?autoplay=0&mute=1&controls=0&loop=1" frameborder="0" allowfullscreen></iframe></div>`
+                            : `<img src="${item.url}" class="w-full h-auto object-contain max-h-[700px]" loading="lazy" alt="${item.title}" onerror="handleImageError(this)">`
+                        }
+                        <!-- Like Heart Animation Overlay -->
+                        <div class="like-heart-overlay text-white text-9xl drop-shadow-2xl">
+                            <i class="fas fa-heart text-white"></i>
+                        </div>
+                    </div>
+
+                    <!-- Post Actions -->
+                    <div class="mt-3 px-4 md:px-0">
+                        <div class="flex justify-between mb-2">
+                            <div class="flex space-x-4 text-2xl">
+                                <button class="hover:opacity-60 transition-opacity like-btn" onclick="toggleLike(this)"><i class="far fa-heart"></i></button>
+                                <button class="hover:opacity-60 transition-opacity"><i class="far fa-comment"></i></button>
+                                <button class="hover:opacity-60 transition-opacity"><i class="far fa-paper-plane"></i></button>
+                            </div>
+                            <div>
+                                <button class="hover:opacity-60 transition-opacity text-2xl" onclick="toggleSave(this)"><i class="far fa-bookmark"></i></button>
+                            </div>
+                        </div>
+                        
+                        <!-- Likes Count -->
+                        <div class="font-semibold text-sm mb-1">${likes.toLocaleString()} likes</div>
+
+                        <!-- Caption -->
+                        <div class="text-sm mb-2">
+                            <span class="font-semibold mr-1 cursor-pointer hover:opacity-70">${randomUser.name}</span>
+                            <span>${item.title}</span>
+                            <span class="text-ig-textGray cursor-pointer hover:text-white ml-1" onclick="this.parentElement.nextElementSibling.classList.toggle('hidden'); this.style.display='none'">... more</span>
+                        </div>
+                        
+                        <!-- Hidden Description -->
+                        <div class="hidden text-sm text-gray-300 mb-2 leading-relaxed">
+                            ${item.explanation}
+                        </div>
+
+                        <!-- Comments Link -->
+                        <div class="text-ig-textGray text-sm cursor-pointer mb-1">View all ${Math.floor(likes/10)} comments</div>
+                        
+                        <!-- Add Comment -->
+                        <div class="flex items-center mt-2 text-sm">
+                            <input type="text" placeholder="Add a comment..." class="bg-transparent w-full focus:outline-none text-sm">
+                            <button class="text-ig-blue font-semibold opacity-0 hover:text-white transition-all post-btn">Post</button>
+                        </div>
+                    </div>
+                </article>
+            `;
+            
+            feedContainer.insertAdjacentHTML('beforeend', postHTML);
+
+            // Add event listener to the input to show/hide Post button
+            const lastPost = feedContainer.lastElementChild;
+            const input = lastPost.querySelector('input');
+            const postBtn = lastPost.querySelector('.post-btn');
+            input.addEventListener('input', (e) => {
+                postBtn.style.opacity = e.target.value.length > 0 ? '1' : '0';
+            });
+        }
+
+        // Interaction Functions
+        function toggleLike(btn) {
+            const icon = btn.querySelector('i');
+            if (icon.classList.contains('far')) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                icon.classList.add('text-red-500');
+                icon.classList.add('animate-scale-in');
+            } else {
+                icon.classList.add('far');
+                icon.classList.remove('fas');
+                icon.classList.remove('text-red-500');
+                icon.classList.remove('animate-scale-in');
+            }
+        }
+
+        function toggleSave(btn) {
+            const icon = btn.querySelector('i');
+            if (icon.classList.contains('far')) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+            } else {
+                icon.classList.add('far');
+                icon.classList.remove('fas');
+            }
+        }
+
+        function handleDoubleTap(container) {
+            // Find the like button for this post
+            const article = container.closest('article');
+            const likeBtn = article.querySelector('.like-btn');
+            
+            // Trigger the UI heart toggle
+            const icon = likeBtn.querySelector('i');
+            if (icon.classList.contains('far')) {
+                toggleLike(likeBtn);
+            }
+
+            // Trigger the burst animation
+            const overlay = container.querySelector('.like-heart-overlay');
+            
+            // Reset animation if it's currently playing
+            overlay.classList.remove('animate-heart-burst');
+            void overlay.offsetWidth; // trigger reflow
+            overlay.classList.add('animate-heart-burst');
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
