@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LLM Scaling Law - Canvas Renderer</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden; /* 隐藏原生滚动条 */
+            background-color: #0b1120;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            touch-action: none; /* 禁止浏览器默认手势 */
+            -webkit-font-smoothing: antialiased; /* 字体抗锯齿 */
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="app"></canvas>
+
+    <script>
+        /**
+         * LLM Scaling Law Canvas Renderer v2.1
+         * Fixes: Chart logic to properly visualize scaling dynamics
+         */
+
+        const canvas = document.getElementById('app');
+        const ctx = canvas.getContext('2d');
+
+        // --- 状态管理 ---
+        const state = {
+            // 布局
+            width: 0,
+            height: 0,
+            dpr: 1, // 设备像素比
+            
+            // 滚动
+            scrollY: 0,
+            targetScrollY: 0,
+            totalContentHeight: 0, // 动态计算
+            
+            // 交互
+            mouseX: 0,
+            mouseY: 0,
+            isDraggingSlider: null,
+            hoveredElement: null,
+            
+            // 触摸状态
+            touchStartY: 0,
+            lastTouchY: 0,
+            isTouchDragging: false,
+            
+            // Scaling Law 模拟参数
+            paramsN: 30, 
+            dataD: 50,   
+            showOptimal: false,
+
+            // 动画
+            time: 0
+        };
+
+        // --- 视觉主题 ---
+        const theme = {
+            bg: '#0b1120',
+            cardBg: 'rgba(30, 41, 59, 0.6)',
+            cardBorder: 'rgba(255, 255, 255, 0.1)',
+            accent: '#00f2ff',
+            textPrimary: '#ffffff',
+            textSecondary: '#94a3b8',
+            // 字体定义
+            fontMain: '16px "Inter", sans-serif',
+            fontSmall: '14px "Inter", sans-serif',
+            fontHeader: 'bold 32px "Inter", sans-serif',
+            fontSubHeader: 'bold 24px "Inter", sans-serif'
+        };
+
+        // 交互元素注册表
+        let interactables = [];
+
+        // --- 兼容性 Polyfill ---
+        if (!ctx.roundRect) {
+            ctx.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+            };
+        }
+
+        // --- 核心引擎 ---
+
+        function resize() {
+            state.dpr = window.devicePixelRatio || 1;
+            state.width = window.innerWidth;
+            state.height = window.innerHeight;
+            
+            // 处理 Retina 高清屏
+            canvas.width = state.width * state.dpr;
+            canvas.height = state.height * state.dpr;
+            
+            // 强制 CSS 尺寸
+            canvas.style.width = `${state.width}px`;
+            canvas.style.height = `${state.height}px`;
+            
+            // 缩放绘图上下文
+            ctx.scale(state.dpr, state.dpr);
+        }
+
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            
+            // 鼠标事件
+            window.addEventListener('wheel', handleWheel, { passive: false });
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mousedown', handleMouseDown);
+            window.addEventListener('mouseup', handleMouseUp);
+            
+            // 触摸事件 (Mobile)
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd);
+            
+            requestAnimationFrame(loop);
+        }
+
+        // --- 输入处理 ---
+
+        function getClientPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            state.targetScrollY += e.deltaY;
+            clampScroll();
+        }
+
+        function clampScroll() {
+            const maxScroll = Math.max(0, state.totalContentHeight - state.height + 100); // +100 padding
+            state.targetScrollY = Math.max(0, Math.min(state.targetScrollY, maxScroll));
+        }
+
+        // --- 触摸逻辑 ---
+
+        function handleTouchStart(e) {
+            const pos = getClientPos(e);
+            state.mouseX = pos.x;
+            state.mouseY = pos.y;
+            state.lastTouchY = pos.y;
+            
+            // 检查是否点击了滑块 (优先处理滑块交互，而非滚动)
+            checkInteractables(true); 
+
+            if (!state.isDraggingSlider) {
+                state.isTouchDragging = true;
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault(); // 防止原生滚动
+            const pos = getClientPos(e);
+            state.mouseX = pos.x;
+            state.mouseY = pos.y;
+
+            // 情况1: 正在拖拽滑块
+            if (state.isDraggingSlider) {
+                updateSlider(pos.x);
+                return;
+            }
+
+            // 情况2: 正在滚动页面
+            if (state.isTouchDragging) {
+                const deltaY = state.lastTouchY - pos.y;
+                state.targetScrollY += deltaY;
+                // 触摸滚动时直接同步，减少延迟感
+                state.scrollY = state.targetScrollY; 
+                clampScroll();
+                state.lastTouchY = pos.y;
+            }
+        }
+
+        function handleTouchEnd() {
+            state.isTouchDragging = false;
+            state.isDraggingSlider = null;
+        }
+
+        // --- 鼠标逻辑 ---
+
+        function handleMouseMove(e) {
+            const pos = getClientPos(e);
+            state.mouseX = pos.x;
+            state.mouseY = pos.y;
+
+            if (state.isDraggingSlider) {
+                updateSlider(pos.x);
+            }
+        }
+
+        function handleMouseDown(e) {
+            const pos = getClientPos(e);
+            state.mouseX = pos.x;
+            state.mouseY = pos.y;
+            checkInteractables();
+        }
+
+        function handleMouseUp() {
+            state.isDraggingSlider = null;
+        }
+
+        function updateSlider(x) {
+            const slider = state.isDraggingSlider;
+            let val = (x - slider.x) / slider.w;
+            val = Math.max(0, Math.min(1, val));
+            
+            if (slider.id === 'sliderN') state.paramsN = val * 100;
+            if (slider.id === 'sliderD') state.dataD = val * 100;
+        }
+
+        function checkInteractables(isTouch = false) {
+            const padding = isTouch ? 20 : 10; // 触摸时增加判定范围
+
+            for (let item of interactables) {
+                // item.y 是世界坐标
+                const screenY = item.y - state.scrollY;
+                
+                if (state.mouseX >= item.x - padding && 
+                    state.mouseX <= item.x + item.w + padding &&
+                    state.mouseY >= screenY - padding && 
+                    state.mouseY <= screenY + item.h + padding) {
+                    
+                    if (item.type === 'slider') {
+                        state.isDraggingSlider = item;
+                        updateSlider(state.mouseX);
+                        return;
+                    }
+                    
+                    if (item.type === 'button' || item.type === 'toggle') {
+                        if (item.action) item.action();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // --- 渲染循环 ---
+
+        function loop() {
+            state.time += 0.016;
+            
+            // 平滑滚动插值 (仅在非触摸拖拽时启用惯性)
+            if (!state.isTouchDragging) {
+                const diff = state.targetScrollY - state.scrollY;
+                state.scrollY += diff * 0.1;
+                if (Math.abs(diff) < 0.5) state.scrollY = state.targetScrollY;
+            }
+
+            draw();
+            
+            // 更新光标
+            canvas.style.cursor = state.isDraggingSlider ? 'grabbing' : (state.hoveredElement ? 'pointer' : 'default');
+            state.hoveredElement = null;
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- 绘图函数 ---
+
+        function draw() {
+            // 清空
+            ctx.fillStyle = theme.bg;
+            ctx.fillRect(0, 0, state.width, state.height);
+            
+            // 绘制背景网格动画
+            drawBackgroundGrid();
+
+            // --- 开始内容绘制 ---
+            ctx.save();
+            ctx.translate(0, -state.scrollY);
+            
+            interactables = []; // 重置交互列表
+            let currentY = 120; // 初始 Y 位置
+
+            // 响应式布局计算
+            const maxContentWidth = 1000;
+            const contentWidth = Math.min(maxContentWidth, state.width - 40);
+            const marginX = (state.width - contentWidth) / 2;
+
+            // 1. HERO SECTION
+            drawHero(marginX, currentY, contentWidth);
+            currentY += 400; // 增加高度
+
+            // 2. DRIVERS SECTION
+            currentY = Math.max(currentY, 500); // 确保最小间距
+            drawText('Performance Drivers: N, D, C', marginX, currentY, theme.fontSubHeader, theme.textPrimary);
+            currentY += 60;
+            
+            const cardH = 220;
+            const isMobile = contentWidth < 600;
+            
+            if (isMobile) {
+                // 移动端垂直排列
+                ['Parameters (N)', 'Dataset (D)', 'Compute (C)'].forEach((t, i) => {
+                    drawDriverCard(marginX, currentY, contentWidth, cardH, t, ['N','D','C'][i], ['Model Size','Tokens','FLOPs'][i]);
+                    currentY += cardH + 20;
+                });
+            } else {
+                // 桌面端水平排列
+                const cardW = (contentWidth - 40) / 3;
+                ['Parameters (N)', 'Dataset (D)', 'Compute (C)'].forEach((t, i) => {
+                    drawDriverCard(marginX + i * (cardW + 20), currentY, cardW, cardH, t, ['N','D','C'][i], ['Model Size','Tokens','FLOPs'][i]);
+                });
+                currentY += cardH + 60;
+            }
+
+            // 3. INTERACTIVE SECTION
+            currentY += 40;
+            drawInteractiveSection(marginX, currentY, contentWidth, isMobile);
+            const interactH = isMobile ? 750 : 500;
+            currentY += interactH + 60;
+
+            // 4. FOOTER
+            drawText('Copyright © 2024 LLM Scaling Visualizer | Canvas Rendered', state.width / 2, currentY, '12px Inter', '#555', 'center');
+            currentY += 50;
+
+            // 更新总高度
+            state.totalContentHeight = currentY;
+
+            ctx.restore(); // 结束内容绘制
+
+            // 5. 固定 UI (导航栏)
+            drawNavbar();
+            
+            // 6. 滚动条
+            drawScrollbar();
+        }
+
+        function drawBackgroundGrid() {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
+            const offset = (state.time * 20) % gridSize;
+            
+            ctx.beginPath();
+            for (let x = 0; x < state.width; x += gridSize) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, state.height);
+            }
+            for (let y = -offset; y < state.height; y += gridSize) {
+                ctx.moveTo(0, y); ctx.lineTo(state.width, y);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawHero(x, y, w) {
+            drawText('Understanding LLM Power of Scale', x, y, theme.fontHeader, theme.textPrimary);
+            drawText('How Scale Drives Growth', x, y + 45, theme.fontHeader, theme.accent);
+            
+            // 自动换行文字
+            const desc = 'Explore how model size (N), data volume (D), and compute (C) determine performance.';
+            wrapText(desc, x, y + 100, w > 600 ? w * 0.6 : w, 24, theme.fontMain, theme.textSecondary);
+            
+            const btnY = y + 160;
+            const btnW = 160;
+            
+            // 检测 Hover
+            const screenY = btnY - state.scrollY;
+            const isHover = state.mouseX > x && state.mouseX < x + btnW && state.mouseY > screenY && state.mouseY < screenY + 50;
+            if (isHover) state.hoveredElement = true;
+
+            drawRect(x, btnY, btnW, 50, isHover ? '#38bdf8' : theme.accent, 8);
+            drawText('Start Exploring', x + btnW/2, btnY + 18, 'bold 16px Inter', '#000', 'center');
+            
+            interactables.push({ type: 'button', x, y: btnY, w: btnW, h: 50, action: () => state.targetScrollY = 800 });
+            
+            // Hero Icon (Mobile 隐藏)
+            if (w > 600) {
+                const cx = x + w - 150;
+                const cy = y + 80;
+                drawGlow(cx, cy, 100, 'rgba(0, 242, 255, 0.1)');
+                ctx.strokeStyle = theme.accent;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(cx - 80, cy + 60);
+                ctx.quadraticCurveTo(cx, cy + 60, cx + 80, cy - 60);
+                ctx.stroke();
+            }
+        }
+
+        function drawDriverCard(x, y, w, h, title, icon, sub) {
+            const screenY = y - state.scrollY;
+            const isHover = state.mouseX > x && state.mouseX < x + w && state.mouseY > screenY && state.mouseY < screenY + h;
+            if (isHover) state.hoveredElement = true;
+
+            drawRect(x, y, w, h, theme.cardBg, 16, theme.cardBorder);
+            
+            // 玻璃光泽
+            const grad = ctx.createLinearGradient(x, y, x, y + h);
+            grad.addColorStop(0, 'rgba(255,255,255,0.05)');
+            grad.addColorStop(1, 'transparent');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy - 20, 30, 0, Math.PI*2);
+            ctx.strokeStyle = isHover ? theme.accent : 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            drawText(icon, cx, cy - 28, 'bold 20px Inter', isHover ? theme.accent : '#fff', 'center');
+            drawText(title, cx, cy + 30, 'bold 16px Inter', '#fff', 'center');
+            drawText(sub, cx, cy + 55, '14px Inter', theme.textSecondary, 'center');
+        }
+
+        function drawInteractiveSection(x, y, w, isMobile) {
+            const h = isMobile ? 750 : 500;
+            
+            drawRect(x, y, w, h, theme.cardBg, 16, theme.cardBorder);
+            drawText('Interactive Experience', x + 30, y + 30, theme.fontSubHeader, theme.textPrimary);
+
+            const controlW = isMobile ? w - 60 : w * 0.4;
+            const startY = y + 100;
+
+            // Sliders
+            drawSlider(x + 30, startY, controlW, state.paramsN / 100, 'Model Params (N)', 'sliderN');
+            drawSlider(x + 30, startY + 100, controlW, state.dataD / 100, 'Training Data (D)', 'sliderD');
+
+            // Toggle
+            const toggleY = startY + 180;
+            const toggleX = x + 30;
+            
+            // Toggle Hit Test
+            const screenTY = toggleY - state.scrollY;
+            if (state.mouseX > toggleX && state.mouseX < toggleX + 200 && state.mouseY > screenTY && state.mouseY < screenTY + 30) {
+                state.hoveredElement = true;
+            }
+
+            drawRect(toggleX, toggleY, 46, 24, '#334155', 12);
+            drawRect(toggleX + (state.showOptimal ? 24 : 2), toggleY + 2, 20, 20, state.showOptimal ? theme.accent : '#fff', 10);
+            drawText('Show Optimal Scaling', toggleX + 60, toggleY + 4, '14px Inter', '#fff');
+            
+            interactables.push({ type: 'toggle', x: toggleX, y: toggleY, w: 200, h: 30, action: () => state.showOptimal = !state.showOptimal });
+
+            // Chart
+            const chartX = isMobile ? x + 20 : x + w * 0.5;
+            const chartY = isMobile ? y + 350 : y + 80;
+            const chartW = isMobile ? w - 40 : w * 0.45;
+            const chartH = isMobile ? 300 : 350;
+
+            drawChart(chartX, chartY, chartW, chartH);
+        }
+
+        function drawSlider(x, y, w, pct, label, id) {
+            drawText(label, x, y - 25, theme.fontSmall, theme.textSecondary);
+            
+            // Track
+            drawRect(x, y, w, 6, '#334155', 3);
+            // Fill
+            drawRect(x, y, w * pct, 6, theme.accent, 3);
+            
+            // Handle
+            const hx = x + w * pct;
+            const isDrag = state.isDraggingSlider && state.isDraggingSlider.id === id;
+            
+            if (isDrag) drawGlow(hx, y + 3, 15, 'rgba(0,242,255,0.5)');
+            
+            ctx.beginPath();
+            ctx.arc(hx, y + 3, isDrag ? 10 : 8, 0, Math.PI*2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // Register Interactable
+            interactables.push({ type: 'slider', x, y, w, h: 20, id });
+
+            // Value Text
+            let valStr = id === 'sliderN' ? formatNum(Math.pow(10, 7 + pct * 5)) + ' Params' : formatNum(Math.pow(10, 9 + pct * 4)) + ' Tokens';
+            drawText(valStr, x + w - 10, y - 25, 'bold 12px monospace', theme.accent, 'right');
+        }
+
+        function drawChart(x, y, w, h) {
+            drawRect(x, y, w, h, 'rgba(0,0,0,0.2)', 8);
+            
+            // Grid
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            for(let i=0; i<=5; i++) {
+                ctx.moveTo(x, y + i*(h/5)); ctx.lineTo(x+w, y + i*(h/5));
+                ctx.moveTo(x + i*(w/5), y); ctx.lineTo(x + i*(w/5), y+h);
+            }
+            ctx.stroke();
+
+            drawText('Compute (FLOPs)', x + w/2, y + h + 10, '10px Inter', '#555', 'center');
+            
+            // 修正 Y 轴标签位置
+            ctx.save();
+            ctx.rotate(-Math.PI/2);
+            drawText('Loss', -(y + h/2), x - 15, '10px Inter', '#555', 'center');
+            ctx.restore();
+
+            // Curve
+            const points = [];
+            // 使用对数刻度更平滑地模拟参数变化
+            const N = Math.pow(10, 7 + (state.paramsN/100) * 5);
+            const D = Math.pow(10, 9 + (state.dataD/100) * 4);
+            
+            const steps = 30;
+            for(let i=0; i<=steps; i++) {
+                const t = i/steps;
+                // 扩大 Compute 范围 (10^14 - 10^26) 使得曲线更陡峭
+                const C = Math.pow(10, 14 + t * 12);
+                
+                // 修改后的 Scaling Law 模拟逻辑
+                // 1. Ideal Loss: 纯粹由算力决定的下降曲线 (15 / log10(C))
+                let ideal = 15 / Math.log10(C); // Range approx [1.07, 0.57]
+                
+                // 2. Bottlenecks: 由模型大小和数据量决定的“地板”
+                // 系数经过调整，使其落在可视范围内 (0.5 - 1.0)
+                // botN range: [0.38, 0.19] * 2.5 -> [0.95, 0.47]
+                let botN = 2.5 / Math.pow(N, 0.06); 
+                
+                // botD range: [0.29, 0.16] * 3.0 -> [0.87, 0.48]
+                let botD = 3.0 / Math.pow(D, 0.06);
+                
+                // 实际 Loss 是这三者的最大值（受限于最短的短板）
+                let loss = Math.max(ideal, botN, botD);
+                
+                // 归一化到画布高度：假设 Loss 范围在 [0.4, 1.1] 之间映射到画布 [0, h]
+                let normalizedH = (loss - 0.4) / (1.1 - 0.4);
+                normalizedH = Math.max(0, Math.min(1, normalizedH));
+                
+                let py = y + h - (1 - normalizedH) * h; // Loss 越小，Y 越大（画布向下）- wait, Y up is smaller Y value. 
+                // Py = y + h (bottom) - height_from_bottom.
+                // height_from_bottom should be high for low loss? No.
+                // In chart, usually High Y (top) is High Loss. Low Y (bottom) is Low Loss.
+                // Let's flip it:
+                // Top of chart (y) -> High Loss (1.1)
+                // Bottom of chart (y+h) -> Low Loss (0.4)
+                
+                py = y + (normalizedH * h);
+
+                points.push({x: x + t*w, y: py});
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for(let p of points) ctx.lineTo(p.x, p.y);
+            ctx.strokeStyle = theme.accent;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Optimal (Chinchilla Line)
+            if (state.showOptimal) {
+                ctx.beginPath();
+                ctx.setLineDash([4,4]);
+                // Draw a secondary curve that represents "perfectly matched" parameters
+                const startY = points[0].y;
+                ctx.moveTo(points[0].x, startY + 10); // Start slightly below
+                
+                for(let i=0; i<=steps; i++) {
+                    const t = i/steps;
+                    // Optimal curve just follows the 'ideal' compute curve without hitting bottlenecks
+                    // Simulated by a gentle slope
+                    const optLoss = 15 / Math.log10(Math.pow(10, 14 + t * 12));
+                    let normOpt = (optLoss - 0.4) / 0.7;
+                    let optY = y + normOpt * h + 10; // Offset slightly
+                    ctx.lineTo(x + t*w, optY);
+                }
+                
+                ctx.strokeStyle = '#a855f7';
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        function drawNavbar() {
+            ctx.fillStyle = 'rgba(11, 17, 32, 0.95)';
+            ctx.fillRect(0, 0, state.width, 60);
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.fillRect(0, 60, state.width, 1);
+
+            const links = ['Home', 'About', 'Demo'];
+            const startX = state.width > 600 ? state.width/2 - 100 : 20;
+            
+            links.forEach((l, i) => {
+                const lx = startX + i * 80;
+                const ly = 25;
+                // Simple navbar hover
+                if (state.mouseY < 60 && Math.abs(state.mouseX - (lx + 20)) < 30) {
+                    ctx.fillStyle = theme.accent;
+                    state.hoveredElement = true;
+                } else {
+                    ctx.fillStyle = theme.textSecondary;
+                }
+                drawText(l, lx, ly, theme.fontSmall, ctx.fillStyle);
+            });
+        }
+
+        function drawScrollbar() {
+            if (state.totalContentHeight <= state.height) return;
+            const ratio = state.height / state.totalContentHeight;
+            const barH = Math.max(50, state.height * ratio);
+            const barY = (state.scrollY / (state.totalContentHeight - state.height)) * (state.height - barH);
+            
+            drawRect(state.width - 6, barY, 4, barH, 'rgba(255,255,255,0.2)', 2);
+        }
+
+        // --- Utils ---
+        
+        function drawRect(x, y, w, h, c, r) {
+            ctx.beginPath();
+            ctx.roundRect(x, y, w, h, r);
+            ctx.fillStyle = c;
+            ctx.fill();
+        }
+
+        function drawText(t, x, y, f, c, a='left') {
+            ctx.font = f; ctx.fillStyle = c; ctx.textAlign = a; ctx.textBaseline = 'top';
+            ctx.fillText(t, x, y);
+        }
+
+        function wrapText(text, x, y, maxWidth, lineHeight, font, color) {
+            ctx.font = font; ctx.fillStyle = color; ctx.textAlign = 'left';
+            const words = text.split(' ');
+            let line = '';
+            
+            for(let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, y);
+        }
+
+        function drawGlow(x, y, r, c) {
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, c); g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g; ctx.fillRect(x-r, y-r, r*2, r*2);
+        }
+
+        function formatNum(n) {
+            if (n >= 1e12) return (n/1e12).toFixed(1) + 'T';
+            if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+            if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+            return Math.round(n);
+        }
+
+        init();
+    </script>
+</body>
+</html>

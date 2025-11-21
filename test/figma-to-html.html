@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusAI - Revolutionize Your Workflow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            overflow-x: hidden;
+            background-color: #000000;
+            font-family: 'Inter', sans-serif;
+            color: white;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: all;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050510;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        /* Glassmorphism Utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-card {
+            background: rgba(15, 15, 25, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: border-color 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+        
+        .glass-nav {
+            background: rgba(5, 5, 16, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Gradients */
+        .text-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .text-gradient-purple {
+            background: linear-gradient(90deg, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Utility */
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Marquee Animation */
+        .marquee-container {
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+        
+        /* Loader */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Cursor blinking for code typing */
+        .cursor::after {
+            content: '|';
+            animation: blink 1s step-start infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- 3D Background Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- Navigation -->
+    <nav class="w-full glass-nav fixed top-0 z-40 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3 cursor-pointer logo-anim">
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-white to-gray-600 shadow-[0_0_15px_rgba(255,255,255,0.3)]"></div>
+                <span class="font-bold text-xl tracking-tight">Nexus<span class="text-gray-400">AI</span></span>
+            </div>
+
+            <!-- Center Menu (Desktop) -->
+            <div class="hidden md:flex items-center">
+                <div class="glass rounded-full px-1 py-1 flex items-center gap-1 nav-links">
+                    <a href="#features" class="px-4 py-2 rounded-full text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-all">Features</a>
+                    <a href="#integration" class="px-4 py-2 rounded-full text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-all">Integration</a>
+                    <a href="#pricing" class="px-4 py-2 rounded-full text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-all">Pricing</a>
+                    <a href="#" class="px-4 py-2 rounded-full text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-all">Blog</a>
+                </div>
+            </div>
+
+            <!-- CTA -->
+            <button class="hidden md:block glass hover:bg-white/10 text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all border border-white/20 hover:border-white/40 btn-anim">
+                Join waitlist
+            </button>
+
+            <!-- Mobile Menu Button -->
+            <button class="md:hidden text-white p-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Overlay -->
+    <div class="relative z-10 flex flex-col">
+        
+        <!-- Hero Section -->
+        <section class="min-h-screen flex items-center pt-20 relative overflow-hidden">
+            <div class="max-w-7xl mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                
+                <div class="space-y-8 pt-10 lg:pt-0 z-20"> 
+                    <!-- Badge -->
+                    <div class="hero-el inline-flex items-center gap-2 glass px-4 py-1.5 rounded-full">
+                        <span class="px-1.5 py-0.5 rounded bg-white text-black text-[10px] font-bold uppercase tracking-wide">New</span>
+                        <span class="text-sm text-gray-300">Engine v2.0 Released</span>
+                    </div>
+
+                    <!-- Headline -->
+                    <div class="space-y-2">
+                        <h1 class="hero-el text-6xl md:text-7xl lg:text-8xl font-bold leading-tight tracking-tight">
+                            Revolutionize <br />
+                            <span class="text-gradient">Your Workflow</span> <br />
+                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">with AI.</span>
+                        </h1>
+                    </div>
+
+                    <!-- Subheadline -->
+                    <p class="hero-el text-lg md:text-xl text-gray-400 max-w-xl leading-relaxed">
+                        Harness the power of neural networks to automate the mundane. Experience productivity at the speed of thought.
+                    </p>
+
+                    <!-- Buttons -->
+                    <div class="hero-el flex flex-wrap items-center gap-4">
+                        <button class="btn-primary bg-white text-black px-8 py-4 rounded-full font-semibold text-lg transition-transform hover:scale-105">
+                            Get Started
+                        </button>
+                        <button class="btn-secondary glass px-8 py-4 rounded-full font-semibold text-lg text-white hover:bg-white/10 transition-all border border-white/10 hover:border-white/30 flex items-center gap-2 group">
+                            <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                            Watch Demo
+                        </button>
+                    </div>
+                    
+                    <!-- Stats -->
+                    <div class="hero-el pt-8 flex items-center gap-6 border-t border-white/5">
+                        <div>
+                            <p class="text-2xl font-bold text-white counter-anim">10k+</p>
+                            <p class="text-sm text-gray-500">Active Users</p>
+                        </div>
+                        <div class="w-px h-8 bg-white/10"></div>
+                        <div>
+                            <p class="text-2xl font-bold text-white counter-anim">99%</p>
+                            <p class="text-sm text-gray-500">Efficiency Boost</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Spacer for 3D Canvas -->
+                <div class="hidden lg:block h-full"></div>
+            </div>
+        </section>
+
+        <!-- Trusted By Section -->
+        <section class="py-12 border-t border-white/5 glass backdrop-blur-md">
+            <div class="max-w-7xl mx-auto px-6 text-center mb-8">
+                <p class="text-sm text-gray-500 uppercase tracking-widest">Trusted by innovators</p>
+            </div>
+            <div class="marquee-container overflow-hidden max-w-6xl mx-auto relative">
+                <div class="flex gap-16 items-center whitespace-nowrap marquee-content opacity-50 hover:opacity-100 transition-opacity duration-500">
+                    <!-- Placeholder Logos -->
+                    <h3 class="text-2xl font-bold text-gray-400">ACME Corp</h3>
+                    <h3 class="text-2xl font-bold text-gray-400">Quantum</h3>
+                    <h3 class="text-2xl font-bold text-gray-400">Starlight</h3>
+                    <h3 class="text-2xl font-bold text-gray-400">Umbrella</h3>
+                    <h3 class="text-2xl font-bold text-gray-400">CyberDyne</h3>
+                    <h3 class="text-2xl font-bold text-gray-400">Globex</h3>
+                    <!-- Duplicate for seamless loop (handled by anime.js if we wanted, but let's keep it static simple or animate later) -->
+                    <h3 class="text-2xl font-bold text-gray-400">ACME Corp</h3>
+                    <h3 class="text-2xl font-bold text-gray-400">Quantum</h3>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="py-32 relative">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="mb-20 max-w-3xl">
+                    <h2 class="text-4xl md:text-5xl font-bold mb-6">Unlock the full <span class="text-gradient-purple">potential.</span></h2>
+                    <p class="text-xl text-gray-400">Our neural engine processes data faster than any human team, providing insights that were previously invisible.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Card 1 -->
+                    <div class="glass-card p-8 rounded-2xl feature-card opacity-0 translate-y-10">
+                        <div class="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center mb-6 text-blue-400">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Real-time Processing</h3>
+                        <p class="text-gray-400 leading-relaxed">Analyze millions of data points in milliseconds with our proprietary edge-computing architecture.</p>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="glass-card p-8 rounded-2xl feature-card opacity-0 translate-y-10">
+                        <div class="w-14 h-14 rounded-xl bg-purple-500/10 flex items-center justify-center mb-6 text-purple-400">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">99.9% Accuracy</h3>
+                        <p class="text-gray-400 leading-relaxed">Our models are trained on diverse datasets to ensure precision across all edge cases and anomalies.</p>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="glass-card p-8 rounded-2xl feature-card opacity-0 translate-y-10">
+                        <div class="w-14 h-14 rounded-xl bg-pink-500/10 flex items-center justify-center mb-6 text-pink-400">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Custom Workflows</h3>
+                        <p class="text-gray-400 leading-relaxed">Build your own logic flows using our drag-and-drop interface or fully documented API.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Code Integration Section -->
+        <section id="integration" class="py-32 relative overflow-hidden">
+            <!-- Decorative BG glow -->
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none"></div>
+
+            <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <!-- Text -->
+                <div class="integration-text opacity-0">
+                    <h2 class="text-4xl font-bold mb-6">Seamless Integration for <br/>Developers.</h2>
+                    <p class="text-gray-400 text-lg mb-8">Plug NexusAI directly into your existing stack. Whether it's Python, Node, or Go, we have SDKs ready to deploy.</p>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4 text-gray-300">
+                            <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs">✓</div>
+                            <span>REST & GraphQL APIs</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-gray-300">
+                            <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs">✓</div>
+                            <span>Webhooks & Event Streaming</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-gray-300">
+                            <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 text-xs">✓</div>
+                            <span>99.99% Uptime SLA</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code Window -->
+                <div class="relative group code-window-container opacity-0 translate-x-10">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl opacity-50 blur group-hover:opacity-75 transition duration-1000"></div>
+                    <div class="relative bg-[#0F1117] rounded-xl border border-gray-800 overflow-hidden shadow-2xl">
+                        <!-- Header -->
+                        <div class="flex items-center px-4 py-3 bg-[#161b22] border-b border-gray-800">
+                            <div class="flex gap-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                                <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                                <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                            </div>
+                            <div class="ml-4 text-xs text-gray-500 font-mono">integration.py</div>
+                        </div>
+                        <!-- Code Body -->
+                        <div class="p-6 overflow-x-auto">
+                            <pre class="font-mono text-sm leading-relaxed text-gray-300"><code id="typewriter-text"></code><span class="cursor text-blue-400"></span></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="py-12 border-t border-white/10 bg-black/50 backdrop-blur-sm">
+            <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-full bg-gray-700"></div>
+                    <span class="font-bold text-lg">NexusAI</span>
+                </div>
+                <div class="text-gray-500 text-sm">
+                    © 2025 NexusAI Inc. All rights reserved.
+                </div>
+                <div class="flex gap-6 text-gray-400">
+                    <a href="#" class="hover:text-white transition-colors">Twitter</a>
+                    <a href="#" class="hover:text-white transition-colors">GitHub</a>
+                    <a href="#" class="hover:text-white transition-colors">Discord</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Logic Scripts -->
+    <script>
+        // --- Anime.js Animations ---
+        
+        // 1. Hero Animations (on load)
+        window.addEventListener('load', () => {
+            const tl = anime.timeline({
+                easing: 'easeOutExpo',
+                duration: 1000
+            });
+
+            tl.add({
+                targets: '.hero-el',
+                translateY: [50, 0],
+                opacity: [0, 1],
+                delay: anime.stagger(150)
+            })
+            .add({
+                targets: '.logo-anim',
+                opacity: [0, 1],
+                translateX: [-20, 0],
+            }, '-=800')
+            .add({
+                targets: '.nav-links a',
+                opacity: [0, 1],
+                translateY: [-10, 0],
+                delay: anime.stagger(100)
+            }, '-=800')
+            .add({
+                targets: '.btn-anim',
+                opacity: [0, 1],
+                scale: [0.9, 1]
+            }, '-=600');
+        });
+
+        // 2. Scroll-triggered Animations (Features)
+        const observerOptions = { threshold: 0.2 };
+
+        const featuresObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    anime({
+                        targets: '.feature-card',
+                        translateY: [50, 0],
+                        opacity: [0, 1],
+                        delay: anime.stagger(200),
+                        easing: 'spring(1, 80, 10, 0)'
+                    });
+                    featuresObserver.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelector('#features').querySelectorAll('.feature-card').forEach(card => {
+            // We observe the section usually, but here let's observe the container
+        });
+        featuresObserver.observe(document.querySelector('#features'));
+
+
+        // 3. Code Typewriter Effect
+        const codeText = `import nexus_ai as nx
+
+# Initialize Neural Core
+client = nx.Client(api_key="nx_v2_8932")
+
+# Process Data Stream
+data = client.streams.connect("wss://api.nexus.ai/v1")
+
+@client.on_event("insight")
+async def handle_insight(payload):
+    print(f"Optimizing: {payload.efficiency}%")
+    await client.actions.execute(payload.optimize)
+
+client.run_forever()`;
+
+        const codeObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Animate container entrance
+                    anime({
+                        targets: '.integration-text',
+                        translateX: [-50, 0],
+                        opacity: [0, 1],
+                        duration: 1000,
+                        easing: 'easeOutQuad'
+                    });
+                    
+                    anime({
+                        targets: '.code-window-container',
+                        translateX: [50, 0],
+                        opacity: [0, 1],
+                        duration: 1000,
+                        easing: 'easeOutQuad',
+                        complete: () => {
+                            // Start typing
+                            startTypewriter();
+                        }
+                    });
+
+                    codeObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.4 });
+
+        codeObserver.observe(document.querySelector('#integration'));
+
+        function startTypewriter() {
+            const codeEl = document.getElementById('typewriter-text');
+            let i = 0;
+            
+            // Simple interval for typing
+            const typing = setInterval(() => {
+                if (i < codeText.length) {
+                    let char = codeText.charAt(i);
+                    if (char === '\n') char = '<br/>';
+                    // Basic syntax highlighting manually for simplicity in this demo
+                    if (codeText.substring(i).startsWith('import')) char = '<span class="text-purple-400">import</span>';
+                    if (codeText.substring(i).startsWith('as')) char = '<span class="text-purple-400">as</span>';
+                    if (codeText.substring(i).startsWith('#')) char = '<span class="text-gray-500">#'; // Basic start comment
+                    
+                    // Just appending plain text for robustness in this simple implementation
+                    // To do real highlighting we'd need to parse words. 
+                    // Let's just stick to simple char appending for the visual effect.
+                    codeEl.innerHTML += codeText.charAt(i); 
+                    i++;
+                } else {
+                    clearInterval(typing);
+                }
+            }, 30); // typing speed
+        }
+
+        // 4. Infinite Marquee (Simple CSS+JS reset)
+        // We already used CSS for the marquee structure, Anime.js can smoothen it if we wanted specific control
+        anime({
+            targets: '.marquee-content',
+            translateX: '-50%',
+            duration: 20000,
+            easing: 'linear',
+            loop: true
+        });
+
+        // --- Interactive Hover Effects ---
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                anime({
+                    targets: btn,
+                    scale: 1.05,
+                    duration: 800
+                })
+            });
+            btn.addEventListener('mouseleave', () => {
+                anime({
+                    targets: btn,
+                    scale: 1,
+                    duration: 600
+                })
+            });
+        });
+
+    </script>
+
+    <!-- Three.js Logic (Updated for Scroll Interaction) -->
+    <script type="x-shader/x-vertex" id="vertexshader">
+        attribute float size;
+        attribute vec3 customColor;
+        varying vec3 vColor;
+        varying float vDistance;
+        uniform float time;
+        uniform float scrollY;
+
+        void main() {
+            vColor = customColor;
+            vec3 newPos = position;
+            
+            // Pulse effect
+            float dist = length(position);
+            float pulse = sin(time * 2.0 + dist * 0.5) * 0.2; 
+            
+            // Deform based on scroll
+            float twist = scrollY * 0.002;
+            float s = sin(twist * dist * 0.1);
+            float c = cos(twist * dist * 0.1);
+            mat2 rot = mat2(c, -s, s, c);
+            newPos.xz = newPos.xz * rot;
+
+            newPos = newPos * (1.0 + pulse * 0.1);
+            vec4 mvPosition = modelViewMatrix * vec4(newPos, 1.0);
+            gl_PointSize = size * (300.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+            vDistance = -mvPosition.z;
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+        uniform vec3 color;
+        varying vec3 vColor;
+
+        void main() {
+            vec2 coord = gl_PointCoord - vec2(0.5);
+            if(length(coord) > 0.5) discard;
+            float strength = 1.0 - (length(coord) * 2.0);
+            strength = pow(strength, 1.5);
+            gl_FragColor = vec4(color * vColor, strength);
+        }
+    </script>
+
+    <script>
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 30;
+        camera.position.x = 0;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particleCount = 6000;
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+
+        const color1 = new THREE.Color(0x60a5fa);
+        const color2 = new THREE.Color(0xa78bfa);
+        const color3 = new THREE.Color(0xffffff);
+
+        for (let i = 0; i < particleCount; i++) {
+            const phi = Math.acos(-1 + (2 * i) / particleCount);
+            const theta = Math.sqrt(particleCount * Math.PI) * phi;
+            const radius = 12 + Math.random() * 0.5;
+            const x = radius * Math.cos(theta) * Math.sin(phi);
+            const y = radius * Math.sin(theta) * Math.sin(phi);
+            const z = radius * Math.cos(phi);
+
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+
+            let mixedColor = color1.clone();
+            if (Math.random() > 0.5) mixedColor.lerp(color2, Math.random());
+            if (Math.random() > 0.9) mixedColor = color3;
+
+            colors[i * 3] = mixedColor.r;
+            colors[i * 3 + 1] = mixedColor.g;
+            colors[i * 3 + 2] = mixedColor.b;
+            sizes[i] = Math.random() * 2;
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particlesGeometry.setAttribute('customColor', new THREE.BufferAttribute(colors, 3));
+        particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const particlesMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(0xffffff) },
+                time: { value: 0.0 },
+                scrollY: { value: 0.0 }
+            },
+            vertexShader: document.getElementById('vertexshader').textContent,
+            fragmentShader: document.getElementById('fragmentshader').textContent,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+
+        const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particleSystem);
+        particleSystem.position.x = 8; 
+
+        // Wireframe Core
+        const geometryWireframe = new THREE.IcosahedronGeometry(7, 2);
+        const wireframeMaterial = new THREE.MeshBasicMaterial({ color: 0x4f46e5, wireframe: true, transparent: true, opacity: 0.05 });
+        const wireframeMesh = new THREE.Mesh(geometryWireframe, wireframeMaterial);
+        wireframeMesh.position.x = 8;
+        scene.add(wireframeMesh);
+
+        // Starfield
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 2000;
+        const starPos = new Float32Array(starsCount * 3);
+        for(let i=0; i<starsCount*3; i++) starPos[i] = (Math.random() - 0.5) * 200;
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starsMaterial = new THREE.PointsMaterial({color: 0x555555, size: 0.2, transparent: true, opacity: 0.8});
+        const starField = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(starField);
+
+        // Input & Scroll Tracking
+        let mouseX = 0, mouseY = 0;
+        let targetX = 0, targetY = 0;
+        const windowHalfX = window.innerWidth / 2;
+        const windowHalfY = window.innerHeight / 2;
+        let currentScroll = 0;
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX - windowHalfX);
+            mouseY = (event.clientY - windowHalfY);
+        });
+
+        window.addEventListener('scroll', () => {
+            currentScroll = window.scrollY;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if(window.innerWidth < 1024) {
+                particleSystem.position.x = 0;
+                wireframeMesh.position.x = 0;
+                particleSystem.position.y = 5;
+                wireframeMesh.position.y = 5;
+                camera.position.z = 40;
+            } else {
+                particleSystem.position.x = 10;
+                wireframeMesh.position.x = 10;
+                particleSystem.position.y = 0;
+                wireframeMesh.position.y = 0;
+                camera.position.z = 30;
+            }
+        });
+        window.dispatchEvent(new Event('resize'));
+
+        const clock = new THREE.Clock();
+
+        function animateThree() {
+            requestAnimationFrame(animateThree);
+            const elapsedTime = clock.getElapsedTime();
+
+            particlesMaterial.uniforms.time.value = elapsedTime;
+            
+            // Smoothly interpolate scroll value for shader
+            particlesMaterial.uniforms.scrollY.value += (currentScroll - particlesMaterial.uniforms.scrollY.value) * 0.1;
+
+            targetX = mouseX * 0.001;
+            targetY = mouseY * 0.001;
+
+            // Rotate based on scroll for parallax feel
+            const scrollRotation = currentScroll * 0.0005;
+
+            particleSystem.rotation.y = 0.002 * elapsedTime + scrollRotation;
+            particleSystem.rotation.x += (targetY - particleSystem.rotation.x) * 0.05;
+            
+            wireframeMesh.rotation.y = -0.002 * elapsedTime - scrollRotation;
+            wireframeMesh.rotation.x += (targetY - wireframeMesh.rotation.x) * 0.02;
+
+            // Move stars
+            starField.rotation.y += 0.0002;
+            starField.position.y = currentScroll * 0.02; // Parallax stars up
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            const loader = document.getElementById('loader');
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.style.display = 'none';
+                animateThree();
+            }, 500);
+        };
+    </script>
+</body>
+</html>
