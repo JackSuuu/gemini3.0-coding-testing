@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JoJo Stand Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Kosugi+Maru&family=Russo+One&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
+    <!-- Tailwind for layout utility -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        jojo: {
+                            purple: '#2b0045',
+                            lightPurple: '#5e2a85',
+                            gold: '#ffcc00',
+                            pink: '#ff0055',
+                            dark: '#12031f'
+                        }
+                    },
+                    fontFamily: {
+                        bangers: ['Bangers', 'cursive'],
+                        russo: ['Russo One', 'sans-serif'],
+                        kosugi: ['Kosugi Maru', 'sans-serif'],
+                        condensed: ['Roboto Condensed', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #2b0045;
+            background-image: 
+                linear-gradient(45deg, #3a055c 25%, transparent 25%, transparent 75%, #3a055c 75%, #3a055c),
+                linear-gradient(45deg, #3a055c 25%, transparent 25%, transparent 75%, #3a055c 75%, #3a055c);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1a0525; }
+        ::-webkit-scrollbar-thumb { background: #ff0055; border-radius: 4px; }
+
+        /* Menacing Text Animation */
+        .menacing {
+            position: absolute;
+            font-family: 'Kosugi Maru', sans-serif;
+            color: #4a0080;
+            pointer-events: none;
+            user-select: none;
+            animation: floatShake 2.5s infinite ease-in-out;
+            z-index: 0;
+        }
+
+        @keyframes floatShake {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            50% { transform: translate(-5px, -10px) rotate(-5deg) scale(1.1); }
+            100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+        }
+
+        /* Card Styles */
+        .panel-border {
+            border: 4px solid #ffcc00;
+            box-shadow: 5px 5px 0px #ff0055;
+        }
+
+        .polaroid {
+            background: white;
+            padding: 10px 10px 40px 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transform: rotate(-2deg);
+            transition: transform 0.3s ease;
+        }
+        .polaroid:hover { transform: rotate(0deg) scale(1.02); }
+
+        .stat-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #ff0055;
+            color: #ff0055;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Bangers';
+            font-size: 1.5rem;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+        }
+
+        .ability-box {
+            background: rgba(255, 255, 255, 0.9);
+            border-left: 8px solid #ffcc00;
+            color: black;
+            transform: skewX(-5deg);
+        }
+
+        /* Loader */
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #ff0055;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 relative">
+
+    <!-- Background Effects -->
+    <div id="menacing-container" class="fixed inset-0 pointer-events-none overflow-hidden"></div>
+
+    <!-- Header -->
+    <header class="w-full max-w-6xl flex justify-between items-center mb-6 z-10">
+        <div class="bg-black px-4 py-1 transform skew-x-[-10deg] border-2 border-jojo-yellow">
+            <h1 class="font-bangers text-4xl text-jojo-yellow transform skew-x-[10deg] tracking-wider">JOJO MAKER</h1>
+        </div>
+        <div class="flex gap-2 text-xs font-bold tracking-widest">
+            <span class="bg-jojo-pink px-2 py-1 text-white">EN</span>
+            <span class="bg-white text-black px-2 py-1">JP</span>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="w-full max-w-7xl flex flex-col lg:flex-row gap-6 z-10 items-stretch">
+
+        <!-- Left Panel: User Input -->
+        <aside class="w-full lg:w-1/4 bg-zinc-900 panel-border p-6 flex flex-col items-center justify-between relative overflow-hidden group">
+            <!-- Decorative lines -->
+            <div class="absolute inset-0 border-2 border-zinc-800 m-2 pointer-events-none"></div>
+            
+            <div class="z-10 text-center w-full">
+                <h2 class="font-bangers text-3xl text-jojo-gold mb-8 tracking-widest" style="text-shadow: 2px 2px 0 #ff0055;">THE USER</h2>
+                
+                <!-- API Key Input -->
+                <div class="mb-4 w-full">
+                    <input type="password" id="apiKeyInput" placeholder="Paste Gemini API Key Here" class="w-full bg-black/50 border border-jojo-gold text-white px-3 py-2 text-xs font-mono focus:outline-none focus:border-jojo-pink placeholder-gray-500">
+                </div>
+
+                <!-- Photo Upload Area -->
+                <div class="polaroid cursor-pointer relative mb-6 mx-auto max-w-[250px]" onclick="document.getElementById('fileInput').click()">
+                    <div class="bg-gray-200 h-64 w-full flex items-center justify-center overflow-hidden relative">
+                        <img id="userPreview" src="" class="w-full h-full object-cover hidden">
+                        <div id="uploadPlaceholder" class="text-gray-400 text-center p-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>Click to Upload</span>
+                        </div>
+                    </div>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                </div>
+
+                <button id="generateBtn" onclick="generateStand()" class="w-full bg-gradient-to-r from-jojo-pink to-red-600 text-white font-bangers text-2xl py-3 px-6 transform skew-x-[-5deg] hover:scale-105 transition-all shadow-[4px_4px_0px_#ffcc00] disabled:opacity-50 disabled:cursor-not-allowed">
+                    AWAKEN STAND
+                </button>
+                <p id="statusText" class="mt-4 text-sm text-jojo-gold font-mono hidden">Synchronizing Soul...</p>
+            </div>
+
+            <div class="w-full flex justify-between text-[10px] text-jojo-gold mt-4 uppercase tracking-widest border-t border-zinc-700 pt-2">
+                <span>Part 9</span>
+                <span>JOJOLANDS</span>
+            </div>
+        </aside>
+
+        <!-- Right Panel: Stand Card -->
+        <section class="w-full lg:w-3/4 bg-white panel-border p-2 relative flex flex-col md:flex-row overflow-hidden" style="background: #3a055c;">
+            
+            <!-- Card Background -->
+            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-20"></div>
+
+            <!-- Stand Image (Left/Top) -->
+            <div class="relative w-full md:w-1/2 h-[400px] md:h-auto bg-zinc-900 border-4 border-white m-2 overflow-hidden shadow-lg group">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10"></div>
+                
+                <!-- Loading State -->
+                <div id="imageLoader" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 hidden">
+                    <div class="loader mb-4"></div>
+                    <div class="font-bangers text-jojo-gold text-xl animate-pulse">Constructing Spirit Image...</div>
+                </div>
+
+                <!-- Result Image -->
+                <img id="resultImage" src="" class="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110 hidden">
+                
+                <!-- Default Placeholder -->
+                <div id="resultPlaceholder" class="w-full h-full flex items-center justify-center text-zinc-600 font-bangers text-4xl text-center p-8">
+                    STAND APPEARANCE<br>WILL MANIFEST HERE
+                </div>
+
+                <!-- Stand Name Label -->
+                <div class="absolute bottom-4 right-0 bg-jojo-pink text-white font-bangers text-2xl px-6 py-2 transform skew-x-[-10deg] shadow-lg z-20 border-2 border-white">
+                    <span id="standNameLabel" class="transform skew-x-[10deg] inline-block">???</span>
+                </div>
+                
+                <!-- GoGoGo Overlay -->
+                <div class="absolute top-2 left-2 text-6xl font-kosugi text-jojo-gold opacity-80 z-10" style="text-shadow: 3px 3px 0 #000;">ゴ</div>
+                <div class="absolute bottom-20 left-10 text-4xl font-kosugi text-jojo-pink opacity-80 z-10" style="text-shadow: 2px 2px 0 #000;">ゴ</div>
+            </div>
+
+            <!-- Stats & Info (Right/Bottom) -->
+            <div class="w-full md:w-1/2 p-4 flex flex-col relative z-10">
+                
+                <!-- Header -->
+                <div class="flex justify-between items-end border-b-2 border-white/30 pb-2 mb-4">
+                    <span class="text-jojo-gold font-condensed tracking-[0.2em] text-xs uppercase">Stand Parameters</span>
+                    <div class="flex gap-1">
+                        <div class="w-3 h-3 rounded-full bg-cyan-400"></div>
+                        <div class="w-3 h-3 rounded-full bg-jojo-pink"></div>
+                    </div>
+                </div>
+
+                <!-- Name Display -->
+                <h2 id="mainStandName" class="font-bangers text-5xl text-white mb-6 italic transform -rotate-1" style="text-shadow: 3px 3px 0 #2b0045, -1px -1px 0 #ff0055;">
+                    ???
+                </h2>
+
+                <!-- Radar Chart Section -->
+                <div class="flex flex-row items-center justify-between mb-6">
+                    <!-- Canvas Chart -->
+                    <div class="relative w-[180px] h-[180px] flex-shrink-0">
+                        <canvas id="radarCanvas" width="180" height="180"></canvas>
+                    </div>
+
+                    <!-- Rank Bubbles -->
+                    <div class="grid grid-cols-2 gap-2 ml-4">
+                        <!-- Power -->
+                        <div class="flex flex-col items-center">
+                            <div id="rank-power" class="stat-circle">?</div>
+                            <span class="text-[10px] font-bold mt-1 text-white uppercase">Power</span>
+                        </div>
+                        <!-- Speed -->
+                        <div class="flex flex-col items-center">
+                            <div id="rank-speed" class="stat-circle">?</div>
+                            <span class="text-[10px] font-bold mt-1 text-white uppercase">Speed</span>
+                        </div>
+                        <!-- Range -->
+                        <div class="flex flex-col items-center">
+                            <div id="rank-range" class="stat-circle">?</div>
+                            <span class="text-[10px] font-bold mt-1 text-white uppercase">Range</span>
+                        </div>
+                        <!-- Durability -->
+                        <div class="flex flex-col items-center">
+                            <div id="rank-durability" class="stat-circle">?</div>
+                            <span class="text-[10px] font-bold mt-1 text-white uppercase">Durabl.</span>
+                        </div>
+                        <!-- Precision -->
+                        <div class="flex flex-col items-center">
+                            <div id="rank-precision" class="stat-circle">?</div>
+                            <span class="text-[10px] font-bold mt-1 text-white uppercase">Precis.</span>
+                        </div>
+                        <!-- Potential -->
+                        <div class="flex flex-col items-center">
+                            <div id="rank-potential" class="stat-circle">?</div>
+                            <span class="text-[10px] font-bold mt-1 text-white uppercase">Potent.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Abilities Section -->
+                <div class="mb-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-jojo-yellow text-xl">⚡</span>
+                        <h3 class="font-bangers text-xl text-white tracking-wider opacity-80">ABILITIES</h3>
+                    </div>
+                    
+                    <div class="ability-box p-3 mb-3 shadow-lg">
+                        <h4 id="abilityName" class="font-russo text-jojo-purple text-lg uppercase mb-1">Unknown Ability</h4>
+                        <p id="abilityDesc" class="text-xs font-condensed leading-tight">
+                            Stand abilities have not yet been awakened. Upload an image to begin analysis.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Battle Cry -->
+                <div class="mt-auto bg-black/40 p-4 border border-white/20 rounded">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1 text-center">Battle Cry</p>
+                    <p id="battleCry" class="text-center font-bangers text-jojo-gold text-xl tracking-wide">"..."</p>
+                </div>
+
+                <div id="userNameLabel" class="absolute top-0 right-4 text-xs text-white/50 font-mono mt-16">
+                    USER: <span id="displayUser" class="text-white">UNKNOWN</span>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        // --- Configuration & State ---
+        // const apiKey = ""; // Removed hardcoded key
+        let uploadedImageBase64 = null;
+
+        // --- UI Helpers ---
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImageBase64 = e.target.result.split(',')[1]; // Store base64 without prefix for API
+                    const img = document.getElementById('userPreview');
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                    document.getElementById('uploadPlaceholder').classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- Canvas Chart Logic ---
+        const canvas = document.getElementById('radarCanvas');
+        const ctx = canvas.getContext('2d');
+        const centerX = 90;
+        const centerY = 90;
+        const radius = 70;
+
+        function drawChart(stats = [0,0,0,0,0,0]) {
+            ctx.clearRect(0, 0, 180, 180);
+
+            // Draw Background Hexagons
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            for (let level = 1; level <= 5; level++) {
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 3) * i - Math.PI / 2;
+                    const r = (radius / 5) * level;
+                    const x = centerX + Math.cos(angle) * r;
+                    const y = centerY + Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            // Draw Axes
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i - Math.PI / 2;
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius);
+            }
+            ctx.stroke();
+
+            // Draw Data
+            if (stats.some(s => s > 0)) {
+                ctx.fillStyle = 'rgba(255, 0, 85, 0.5)';
+                ctx.strokeStyle = '#ff0055';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                stats.forEach((val, i) => {
+                    // val is 1-5. Map to radius.
+                    const r = (radius / 5) * val;
+                    const angle = (Math.PI / 3) * i - Math.PI / 2;
+                    const x = centerX + Math.cos(angle) * r;
+                    const y = centerY + Math.sin(angle) * r;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw dots
+                ctx.fillStyle = '#ffcc00';
+                stats.forEach((val, i) => {
+                    const r = (radius / 5) * val;
+                    const angle = (Math.PI / 3) * i - Math.PI / 2;
+                    const x = centerX + Math.cos(angle) * r;
+                    const y = centerY + Math.sin(angle) * r;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+        }
+
+        // Initial empty chart
+        drawChart();
+
+        // --- Background Effects ---
+        function initMenacing() {
+            const container = document.getElementById('menacing-container');
+            const chars = ['ゴ', 'ド', 'ズ', 'バ', 'ァ'];
+            const colors = ['#4a0080', '#ff0055', '#2b0045'];
+
+            for(let i=0; i<20; i++) {
+                const el = document.createElement('div');
+                el.textContent = chars[Math.floor(Math.random() * chars.length)];
+                el.className = 'menacing text-4xl absolute opacity-50';
+                el.style.left = Math.random() * 100 + 'vw';
+                el.style.top = Math.random() * 100 + 'vh';
+                el.style.color = colors[Math.floor(Math.random() * colors.length)];
+                el.style.fontSize = (Math.random() * 3 + 2) + 'rem';
+                el.style.animationDelay = Math.random() * 5 + 's';
+                container.appendChild(el);
+            }
+        }
+        initMenacing();
+
+        // --- API Calls ---
+
+        async function generateStand() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                alert("Please enter your Gemini API Key first!");
+                return;
+            }
+
+            if (!uploadedImageBase64) {
+                alert("You must upload a photo first to awaken your Stand!");
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const status = document.getElementById('statusText');
+            const imgLoader = document.getElementById('imageLoader');
+            const resultImg = document.getElementById('resultImage');
+            const placeholder = document.getElementById('resultPlaceholder');
+
+            btn.disabled = true;
+            status.classList.remove('hidden');
+            status.textContent = "Analyzing soul wavelength...";
+            
+            // UI Prep
+            placeholder.classList.add('hidden');
+            resultImg.classList.add('hidden');
+            imgLoader.classList.remove('hidden');
+
+            try {
+                // 1. Generate Text Data (Name, Stats, Ability)
+                status.textContent = "Manifesting Stand Name & Abilities...";
+                const textResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Generate a unique JoJo's Bizarre Adventure Stand profile. Return ONLY valid JSON.
+                                Structure:
+                                {
+                                    "standName": "string (musical reference)",
+                                    "userName": "string (Japanese or Western name)",
+                                    "abilityName": "string",
+                                    "abilityDesc": "string (short, 20 words)",
+                                    "battleCry": "string (e.g. ORA ORA)",
+                                    "stats": [int, int, int, int, int, int] (values 1-5 representing Power, Speed, Range, Durability, Precision, Potential)
+                                }`
+                            }]
+                        }],
+                        generationConfig: {
+                            responseMimeType: "application/json"
+                        }
+                    })
+                });
+
+                if (!textResponse.ok) {
+                    if (textResponse.status === 429) throw new Error("Text Gen Quota Exceeded (429)");
+                    throw new Error(`Text Gen API Error: ${textResponse.status}`);
+                }
+
+                const textData = await textResponse.json();
+                const standData = JSON.parse(textData.candidates[0].content.parts[0].text);
+
+                // 2. Generate Image (Image-to-Image)
+                status.textContent = "Conjuring Spirit Image...";
+                
+                // Note: Using gemini-2.5-flash-image-preview for image generation tasks as per instructions
+                const imageResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: "Transform this person into a JoJo's Bizarre Adventure anime character. A powerful, colorful spiritual Stand entity is hovering behind them. High contrast, dramatic shading, Hirohiko Araki art style, vibrant purple and yellow colors." },
+                                { inlineData: { mimeType: "image/jpeg", data: uploadedImageBase64 } }
+                            ]
+                        }],
+                        generationConfig: {
+                            responseModalities: ["IMAGE"]
+                        }
+                    })
+                });
+
+                if (!imageResponse.ok) {
+                    if (imageResponse.status === 429) throw new Error("Image Gen Quota Exceeded (429). Try again later.");
+                    throw new Error(`Image Gen API Error: ${imageResponse.status}`);
+                }
+
+                const imageData = await imageResponse.json();
+                
+                if (imageData.candidates && imageData.candidates[0].content.parts[0].inlineData) {
+                    const base64Img = imageData.candidates[0].content.parts[0].inlineData.data;
+                    resultImg.src = `data:image/jpeg;base64,${base64Img}`;
+                    resultImg.classList.remove('hidden');
+                } else {
+                    throw new Error("Failed to generate image");
+                }
+
+                // Update UI with Text Data
+                document.getElementById('mainStandName').textContent = standData.standName;
+                document.getElementById('standNameLabel').textContent = standData.standName;
+                document.getElementById('displayUser').textContent = standData.userName;
+                document.getElementById('abilityName').textContent = standData.abilityName;
+                document.getElementById('abilityDesc').textContent = standData.abilityDesc;
+                document.getElementById('battleCry').textContent = `"${standData.battleCry}"`;
+
+                // Update Stats Chart
+                drawChart(standData.stats);
+                
+                // Update Rank Bubbles
+                const ranks = ['E', 'D', 'C', 'B', 'A', '∞'];
+                const ids = ['rank-power', 'rank-speed', 'rank-range', 'rank-durability', 'rank-precision', 'rank-potential']; // Wait, array order from API matches chart logic order? 
+                // Chart logic order: Power, Speed, Range, Durability, Precision, Potential (Standard JoJo circle)
+                // Let's assume the stats array is [Power, Speed, Range, Durability, Precision, Potential]
+                
+                standData.stats.forEach((val, idx) => {
+                    if(ids[idx]) {
+                        const el = document.getElementById(ids[idx]);
+                        if(el) {
+                            el.textContent = ranks[val - 1] || '?';
+                            // Highlight 'A' ranks
+                            if (val >= 5) {
+                                el.style.backgroundColor = '#ffcc00';
+                                el.style.color = '#2b0045';
+                                el.style.borderColor = '#2b0045';
+                            } else {
+                                el.style.backgroundColor = 'white';
+                                el.style.color = '#ff0055';
+                                el.style.borderColor = '#ff0055';
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error(error);
+                let msg = "A Stand Attack interfered with the signal!";
+                if (error.message.includes("429") || error.message.includes("Quota")) {
+                    msg = "SPEEDWAGON INTERRUPTS: API Quota Exceeded (429). Please wait a moment or check your API plan.";
+                } else {
+                    msg += ` (${error.message})`;
+                }
+                alert(msg);
+            } finally {
+                imgLoader.classList.add('hidden');
+                btn.disabled = false;
+                status.classList.add('hidden');
+            }
+        }
+
+    </script>
+</body>
+</html>
