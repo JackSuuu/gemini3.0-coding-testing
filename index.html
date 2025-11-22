@@ -271,6 +271,8 @@
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
+                height: auto;
+                overflow-y: auto;
             }
 
             .sidebar {
@@ -325,18 +327,24 @@
             
             .frame-container {
                 padding: 0;
+                height: auto;
+                overflow: visible;
+                flex: none;
             }
             
             iframe {
                 border-radius: 0;
                 border: none;
                 border-top: 1px solid var(--border-color);
+                height: 85vh;
             }
             
             .readme-content {
                 border-radius: 0;
                 border: none;
                 padding: 20px;
+                height: auto;
+                overflow: visible;
             }
         }
     </style>
