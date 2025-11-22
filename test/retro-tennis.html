@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wimbledon 1980: Final</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #020202;
+            font-family: 'Press Start 2P', cursive;
+            color: #eee;
+            cursor: none;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center top, #1a2a3a 0%, #000000 80%);
+        }
+
+        /* --- RETRO TV UI START --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            padding: 40px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        #broadcast-ui {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            transform: scale(1.1);
+            transform-origin: top left;
+            filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.6));
+        }
+
+        .tv-box {
+            background: #111;
+            border: 2px solid #fff;
+            padding: 12px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .tv-label {
+            font-size: 8px;
+            color: #888;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .tv-score {
+            font-size: 24px;
+            color: #ffff00; /* LED Yellow */
+            text-shadow: 0 0 5px rgba(255, 255, 0, 0.5);
+        }
+
+        .tv-set-box {
+            background: #004400; /* Wimbledon Green */
+            border: 2px solid #fff;
+            border-left: none;
+            color: #fff;
+            padding: 12px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+        }
+        /* --- RETRO TV UI END --- */
+
+        /* Feedback Text */
+        #feedback-container {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        #shot-text {
+            font-size: 48px;
+            font-style: italic;
+            color: #fff;
+            text-shadow: 4px 4px 0 #d4af37; /* Gold shadow */
+            opacity: 0;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        #spin-icon {
+            font-size: 14px;
+            margin-top: 10px;
+            color: #aaa;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        /* Controls Hint */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            font-size: 10px;
+            color: #888;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border: 1px solid #444;
+            text-align: right;
+            line-height: 1.8;
+        }
+
+        /* Shot Indicator (Bottom Center) */
+        #shot-indicator {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 1px 1px 0 #000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+
+        /* Menu */
+        #menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(12, 28, 12, 0.98);
+            border: 4px double #d4af37;
+            padding: 60px;
+            pointer-events: auto;
+            z-index: 20;
+            box-shadow: 0 0 100px rgba(0,0,0,1);
+            min-width: 400px;
+        }
+        
+        h1 { font-size: 36px; color: #d4af37; margin-bottom: 15px; text-shadow: 3px 3px 0 #000; }
+        h2 { font-size: 12px; color: #fff; margin-bottom: 40px; letter-spacing: 4px; text-transform: uppercase; }
+
+        button {
+            background: #d4af37;
+            border: none;
+            padding: 20px 40px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            color: #111;
+            cursor: pointer;
+            box-shadow: 6px 6px 0 #000;
+            transition: transform 0.1s;
+        }
+        button:hover { background: #fff; }
+        button:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 #000; }
+
+        /* FX */
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.12) 50%, rgba(0,0,0,0.12));
+            background-size: 100% 3px;
+            pointer-events: none; z-index: 5; opacity: 0.5;
+        }
+        .vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 65%, rgba(0,0,0,0.9) 100%);
+            pointer-events: none; z-index: 6;
+        }
+        #flash {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: #fff; opacity: 0; pointer-events: none; z-index: 8; transition: opacity 0.05s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <!-- Retro TV Scoreboard -->
+            <div id="broadcast-ui">
+                <div class="tv-box">
+                    <span class="tv-label">PLAYER</span>
+                    <span class="tv-score" id="s1">0</span>
+                </div>
+                <div class="tv-box" style="border-left: none;">
+                    <span class="tv-label">CPU</span>
+                    <span class="tv-score" id="s2">0</span>
+                </div>
+                <div class="tv-set-box">FINAL</div>
+            </div>
+
+            <div id="feedback-container">
+                <div id="shot-text">ACE!</div>
+                <div id="spin-icon">⟳ TOP SPIN</div>
+            </div>
+
+            <div id="shot-indicator"></div>
+
+            <div id="controls">
+                L-CLICK: TOPSPIN<br>
+                R-CLICK: SLICE<br>
+                MOUSE: MOVEMENT
+            </div>
+        </div>
+
+        <div id="menu">
+            <h1 id="menu-title">WIMBLEDON</h1>
+            <h2 id="menu-sub">The Championship</h2>
+            <button onclick="initGame()">ENTER COURT</button>
+        </div>
+
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+        <div id="flash"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- CONFIGURATION ---
+        const CFG = {
+            // Physics
+            gravity: 15, // Reduced gravity for easier net clearance
+            drag: 0.99,
+            bounce: 0.75, 
+            friction: 0.96,
+            magnus: 20.0,
+            
+            // Gameplay
+            courtW: 27, courtL: 58,
+            netHeight: 1.0, 
+            mouseSens: 0.09, 
+            racketLag: 0.12,
+            hitRadius: 6.0,
+            
+            // Camera
+            camHeight: 3.8,
+            camDist: 17 
+        };
+
+        // --- STATE ---
+        const state = {
+            active: false,
+            server: 'P1',
+            scores: { p1:0, p2:0 },
+            ball: { x:0, y:1, z:0, vx:0, vy:0, vz:0, spin:0, active:false },
+            mouse: { x:0, y:0 },
+            racket: { x:0, y:0, rotX:0, rotY:0 },
+            
+            // Animation State
+            swingPhase: 0, 
+            swingTimer: 0,
+            swingType: 'FH', // FH, BH
+            shotType: 'FLAT', // FLAT, SLICE
+            
+            p2Pos: { x:0, y:2, z:-13 }, // AI
+            
+            shake: 0,
+            freezeFrame: 0,
+            phase: 'MENU'
+        };
+
+        // --- AUDIO ENGINE ---
+        const ac = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const bufSz = ac.sampleRate * 2; 
+        const noiseBuf = ac.createBuffer(1, bufSz, ac.sampleRate);
+        const nData = noiseBuf.getChannelData(0);
+        for (let i = 0; i < bufSz; i++) nData[i] = Math.random() * 2 - 1;
+
+        // Ambience
+        let crowdSound = null;
+        function startAmbience() {
+            if(crowdSound) return;
+            const src = ac.createBufferSource();
+            src.buffer = noiseBuf;
+            src.loop = true;
+            const f = ac.createBiquadFilter(); f.type='lowpass'; f.frequency.value=300;
+            const g = ac.createGain(); g.gain.value=0.04;
+            src.connect(f); f.connect(g); g.connect(ac.destination);
+            src.start();
+            crowdSound = src;
+        }
+
+        function sfx(type, vol=1.0) {
+            if(ac.state==='suspended') ac.resume();
+            const t = ac.currentTime;
+            const master = ac.createGain();
+            master.gain.value = vol;
+            master.connect(ac.destination);
+
+            if(type === 'hit_hard') {
+                const osc = ac.createOscillator(); osc.type = 'triangle';
+                osc.frequency.setValueAtTime(100, t); osc.frequency.exponentialRampToValueAtTime(40, t+0.1);
+                const g = ac.createGain(); g.gain.setValueAtTime(1.0, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+                osc.connect(g); g.connect(master); osc.start(); osc.stop(t+0.1);
+                
+                const n = ac.createBufferSource(); n.buffer = noiseBuf;
+                const f = ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value=800;
+                const ng = ac.createGain(); ng.gain.setValueAtTime(0.6, t); ng.gain.exponentialRampToValueAtTime(0.01, t+0.05);
+                n.connect(f); f.connect(ng); ng.connect(master); n.start(); n.stop(t+0.05);
+
+            } else if(type === 'hit_slice') {
+                const n = ac.createBufferSource(); n.buffer = noiseBuf;
+                const f = ac.createBiquadFilter(); f.type='highpass'; f.frequency.value=1000;
+                const ng = ac.createGain(); ng.gain.setValueAtTime(0.5, t); ng.gain.linearRampToValueAtTime(0, t+0.15);
+                n.connect(f); f.connect(ng); ng.connect(master); n.start(); n.stop(t+0.15);
+
+            } else if(type === 'bounce') {
+                const osc = ac.createOscillator(); osc.type = 'sine';
+                osc.frequency.setValueAtTime(140, t); osc.frequency.exponentialRampToValueAtTime(70, t+0.06);
+                const g = ac.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.01, t+0.06);
+                osc.connect(g); g.connect(master); osc.start(); osc.stop(t+0.06);
+            }
+        }
+
+        // --- THREE.JS ---
+        const container = document.getElementById('game-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.008);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 300);
+        camera.position.set(0, CFG.camHeight, CFG.camDist);
+        camera.lookAt(0, 0, -10);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        container.appendChild(renderer.domElement);
+
+        const amb = new THREE.AmbientLight(0xffffff, 0.6); scene.add(amb);
+        const sun = new THREE.DirectionalLight(0xfff5cc, 1.1);
+        sun.position.set(-30, 60, 20);
+        sun.castShadow = true;
+        sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+        scene.add(sun);
+
+        // --- ASSETS ---
+        function genTex(w, h, fn) {
+            const c = document.createElement('canvas'); c.width=w; c.height=h;
+            const ctx = c.getContext('2d'); fn(ctx, w, h);
+            return new THREE.CanvasTexture(c);
+        }
+
+        const matGrass = new THREE.MeshStandardMaterial({
+            map: genTex(512, 512, (ctx, w, h) => {
+                ctx.fillStyle = '#2d5a2d'; ctx.fillRect(0,0,w,h);
+                for(let i=0;i<100;i++) { 
+                    const x = Math.random()*w, y = Math.random()*h;
+                    const g = ctx.createRadialGradient(x,y,0,x,y,30);
+                    g.addColorStop(0,'rgba(90,70,40,0.2)'); g.addColorStop(1,'rgba(90,70,40,0)');
+                    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+                }
+                for(let i=0;i<10000;i++) { 
+                    ctx.fillStyle = Math.random()>0.5?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)';
+                    ctx.fillRect(Math.random()*w, Math.random()*h, 2, 2);
+                }
+            }),
+            roughness: 1.0
+        });
+
+        const matWood = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.4 });
+        const matBall = new THREE.MeshStandardMaterial({ color: 0xdfff00, roughness: 0.6 });
+        const matString = new THREE.MeshBasicMaterial({ color: 0xffffee, opacity: 0.15, transparent: true, side: THREE.DoubleSide });
+        const matGrip = new THREE.MeshStandardMaterial({ color: 0x221100, roughness: 0.9 });
+
+        // --- SCENE OBJECTS ---
+        const court = new THREE.Group();
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(64, 90), matGrass);
+        ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; court.add(ground);
+        
+        const addLine = (w,h,x,z) => {
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({color:0xffffff, opacity:0.6, transparent:true}));
+            m.rotation.x = -Math.PI/2; m.position.set(x, 0.01, z); m.receiveShadow=true; court.add(m);
+        };
+        addLine(21.96, 0.25, 0, 11.89); addLine(21.96, 0.25, 0, -11.89);
+        addLine(0.25, 23.78, 10.97, 0); addLine(0.25, 23.78, -10.97, 0);
+        addLine(0.25, 23.78, 8.23, 0); addLine(0.25, 23.78, -8.23, 0);
+        addLine(16.46, 0.25, 0, 6.4); addLine(16.46, 0.25, 0, -6.4);
+        addLine(0.25, 12.8, 0, 0);
+
+        const netGeo = new THREE.PlaneGeometry(24, 1.0);
+        const net = new THREE.Mesh(netGeo, new THREE.MeshBasicMaterial({color:0xcccccc, opacity:0.3, transparent:true, side:THREE.DoubleSide}));
+        net.position.y = 0.5; net.castShadow=true; court.add(net);
+        
+        const tape = new THREE.Mesh(new THREE.BoxGeometry(24, 0.1, 0.05), new THREE.MeshBasicMaterial({color:0xffffff}));
+        tape.position.y = 1.0; court.add(tape);
+        
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.2), new THREE.MeshStandardMaterial({color:0x113311}));
+        const pL = post.clone(); pL.position.set(-12, 0.6, 0); court.add(pL);
+        const pR = post.clone(); pR.position.set(12, 0.6, 0); court.add(pR);
+        scene.add(court);
+
+        // STADIUM
+        const stadium = new THREE.Group();
+        const wallMat = new THREE.MeshLambertMaterial({color:0x112211});
+        const w1 = new THREE.Mesh(new THREE.BoxGeometry(80, 2.5, 2), wallMat); w1.position.set(0, 1.25, -40); stadium.add(w1);
+        const w2 = new THREE.Mesh(new THREE.BoxGeometry(80, 2.5, 2), wallMat); w2.position.set(0, 1.25, 40); stadium.add(w2);
+        const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 2.5, 80), wallMat); w3.position.set(-30, 1.25, 0); stadium.add(w3);
+        const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 2.5, 80), wallMat); w4.position.set(30, 1.25, 0); stadium.add(w4);
+        scene.add(stadium);
+
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), matBall);
+        ball.castShadow = true; scene.add(ball);
+        const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.1, 16), new THREE.MeshBasicMaterial({color:0x000000, opacity:0.5, transparent:true}));
+        shadow.rotation.x = -Math.PI/2; scene.add(shadow);
+
+        const marks = new THREE.Group();
+        scene.add(marks);
+        const markGeo = new THREE.CircleGeometry(0.1, 8);
+        const markMat = new THREE.MeshBasicMaterial({color:0x000000, opacity:0.3, transparent:true});
+        function addBallMark(x, z) {
+            const m = new THREE.Mesh(markGeo, markMat);
+            m.rotation.x = -Math.PI/2; m.position.set(x, 0.015, z);
+            marks.add(m);
+            setTimeout(() => {
+                const fade = setInterval(() => {
+                    m.material.opacity -= 0.01;
+                    if(m.material.opacity <= 0) { clearInterval(fade); marks.remove(m); }
+                }, 50);
+            }, 3000);
+        }
+
+        // --- RACKET MODEL ---
+        function createRacket() {
+            const root = new THREE.Group();
+            const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.6, 8), matGrip);
+            grip.position.y = -0.6; root.add(grip);
+
+            const throatShape = new THREE.Shape();
+            throatShape.moveTo(-0.035, -0.31); 
+            throatShape.lineTo(0.035, -0.31);
+            throatShape.lineTo(0.12, 0.15); 
+            throatShape.lineTo(-0.12, 0.15);
+            const throatGeo = new THREE.ExtrudeGeometry(throatShape, { depth: 0.03, bevelEnabled: false });
+            const throat = new THREE.Mesh(throatGeo, matWood);
+            throat.position.z = -0.015; root.add(throat);
+
+            class Oval extends THREE.Curve {
+                getPoint(t) {
+                    const a=0.35, b=0.45;
+                    const tx = Math.cos(2*Math.PI*t)*a;
+                    const ty = Math.sin(2*Math.PI*t)*b;
+                    return new THREE.Vector3(tx, ty+0.55, 0);
+                }
+            }
+            const frameGeo = new THREE.TubeGeometry(new Oval(), 64, 0.015, 8, true);
+            const frame = new THREE.Mesh(frameGeo, matWood);
+            root.add(frame);
+
+            const strGeo = new THREE.CircleGeometry(0.34, 32);
+            const str = new THREE.Mesh(strGeo, matString);
+            str.scale.set(1, 1.28, 1); str.position.y = 0.55; root.add(str);
+
+            const pivot = new THREE.Group();
+            root.rotation.x = -Math.PI/4; 
+            pivot.add(root);
+            return { pivot, mesh: root };
+        }
+
+        const p1Racket = createRacket(); scene.add(p1Racket.pivot);
+        const p2Racket = createRacket(); scene.add(p2Racket.pivot);
+
+        // --- INPUT ---
+        document.addEventListener('click', () => {
+            if(state.phase === 'MENU') return;
+            document.body.requestPointerLock();
+        });
+        document.addEventListener('mousemove', (e) => {
+            if(document.pointerLockElement === document.body) {
+                // Extended mouse range to reach wide balls
+                state.mouse.x += e.movementX * CFG.mouseSens * 0.03;
+                state.mouse.y -= e.movementY * CFG.mouseSens * 0.03;
+                state.mouse.x = Math.max(-12, Math.min(12, state.mouse.x)); // WIDER REACH
+                state.mouse.y = Math.max(0.5, Math.min(5, state.mouse.y));
+            }
+        });
+        document.addEventListener('mousedown', (e) => {
+            if(state.phase === 'PLAY' || state.phase === 'SERVE') {
+                if(state.swingPhase === 0) {
+                    state.shotType = (e.button === 2) ? 'SLICE' : 'FLAT';
+                    startSwing();
+                }
+            }
+        });
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        function startSwing() {
+            state.swingPhase = 1; state.swingTimer = 0;
+            state.swingType = (state.mouse.x < -0.5) ? 'BH' : 'FH';
+            const txt = state.swingType === 'FH' ? 'FOREHAND' : 'BACKHAND';
+            const sub = state.shotType === 'SLICE' ? 'SLICE' : 'TOP SPIN';
+            showUI(txt + " " + sub);
+        }
+
+        function showUI(msg, speed) {
+            if(speed) {
+                const q = document.getElementById('shot-text');
+                const i = document.getElementById('spin-icon');
+                q.innerText = msg;
+                q.style.opacity = 1; q.style.transform = "scale(1.2)";
+                
+                let spinTxt = state.ball.spin > 0 ? "⟳ TOP SPIN" : "⟲ SLICE";
+                i.innerText = spinTxt + " | " + Math.floor(speed) + " MPH";
+                i.style.opacity = 1;
+
+                setTimeout(() => {
+                    q.style.opacity = 0; q.style.transform = "scale(1)";
+                    i.style.opacity = 0;
+                }, 1000);
+            } else {
+                const el = document.getElementById('shot-indicator');
+                if(el) {
+                    el.innerText = msg;
+                    el.style.opacity = 1;
+                    setTimeout(() => el.style.opacity = 0, 800);
+                }
+            }
+        }
+
+        // --- GAME LOGIC ---
+        function initGame() {
+            document.getElementById('menu').style.display = 'none';
+            startAmbience();
+            resetRound('P1');
+        }
+
+        function resetRound(server) {
+            state.server = server; state.phase = 'SERVE'; state.ball.active = false;
+            state.ball.vx=0; state.ball.vy=0; state.ball.vz=0; state.ball.spin=0;
+            state.mouse.x=0; state.mouse.y=2;
+            
+            if(server === 'P1') {
+                state.ball.x=0.5; state.ball.y=2; state.ball.z=14; // Closer to player start
+            } else {
+                state.ball.x=0; state.ball.y=2; state.ball.z=-12;
+            }
+            updateScore();
+        }
+
+        function updateScore() {
+            document.getElementById('s1').innerText = state.scores.p1;
+            document.getElementById('s2').innerText = state.scores.p2;
+        }
+
+        function score(winner, reason) {
+            state.phase='SCORE';
+            const el = document.getElementById('shot-text');
+            el.innerText = reason || (winner + " POINT");
+            el.style.opacity = 1;
+            
+            if(winner==='P1') state.scores.p1++; else state.scores.p2++;
+            updateScore();
+            
+            if(state.scores.p1>=5 || state.scores.p2>=5) {
+                setTimeout(() => {
+                    state.phase='MENU';
+                    document.getElementById('menu').style.display = 'block';
+                    document.getElementById('menu-title').innerText = winner + " WINS!";
+                    document.getElementById('menu-sub').innerText = "CHAMPIONSHIP COMPLETE";
+                    document.exitPointerLock();
+                }, 2000);
+            } else {
+                setTimeout(() => {
+                    el.style.opacity = 0;
+                    resetRound(winner);
+                }, 2000);
+            }
+        }
+
+        // --- PHYSICS & ANIMATION ---
+        function update(dt) {
+            state.racket.x += (state.mouse.x - state.racket.x) * CFG.racketLag;
+            state.racket.y += (state.mouse.y - state.racket.y) * CFG.racketLag;
+            
+            const p = p1Racket.pivot;
+            const r = p1Racket.mesh;
+            const lerp = (a,b,f) => a + (b-a)*f;
+
+            // Racket position closer to camera
+            p.position.set(state.racket.x, state.racket.y, 14);
+
+            if(state.swingPhase === 1) { 
+                state.swingTimer += dt * 5;
+                const t = Math.min(1, state.swingTimer);
+                
+                if(state.swingType === 'FH') {
+                    if(state.shotType === 'SLICE') {
+                        p.position.x += lerp(0, 1.2, t); p.position.y += lerp(0, 1.5, t); p.position.z += lerp(0, 1.0, t);
+                        r.rotation.x = lerp(-Math.PI/4, -0.2, t); r.rotation.y = lerp(0, -1.0, t);
+                    } else {
+                        p.position.x += lerp(0, 1.5, t); p.position.z += lerp(0, 1.0, t);
+                        r.rotation.y = lerp(0, -1.8, t); r.rotation.x = lerp(-Math.PI/4, -Math.PI/1.8, t);
+                    }
+                } else {
+                    p.position.x += lerp(0, -1.5, t);
+                    p.position.y += (state.shotType==='SLICE' ? 1.0 : 0) * t;
+                    p.position.z += lerp(0, 1.0, t);
+                    r.rotation.y = lerp(0, 1.5, t);
+                }
+                if(t>=1) { state.swingPhase=2; state.swingTimer=0; sfx('swish'); }
+            }
+            else if(state.swingPhase === 2) { 
+                state.swingTimer += dt * (state.shotType==='SLICE' ? 8 : 11);
+                const t = state.swingTimer;
+                
+                if(state.swingType === 'FH') {
+                    if(state.shotType === 'SLICE') {
+                        const pt = t;
+                        p.position.x = lerp(state.racket.x+1.2, state.racket.x-1.2, pt);
+                        p.position.y = lerp(state.racket.y+1.5, state.racket.y-0.5, pt);
+                        p.position.z = lerp(15, 12, pt);
+                        r.rotation.x = lerp(-0.2, -Math.PI/4, pt); r.rotation.y = lerp(-1.0, 1.0, pt);
+                    } else {
+                        if(t < 0.4) { 
+                            const pt = t/0.4;
+                            p.position.x = lerp(state.racket.x+1.5, state.racket.x+0.5, pt);
+                            p.position.y = lerp(state.racket.y, state.racket.y-0.8, pt);
+                            p.position.z = 15;
+                            r.rotation.y = -1.8; r.rotation.x = -Math.PI/2 - 0.5;
+                        } else { 
+                            const pt = (t-0.4)/0.6;
+                            p.position.x = lerp(state.racket.x+0.5, state.racket.x-1.2, pt);
+                            p.position.y = lerp(state.racket.y-0.8, state.racket.y+1.2, pt);
+                            p.position.z = lerp(15, 12, pt);
+                            r.rotation.y = lerp(-1.8, 1.5, pt); r.rotation.x = lerp(-2.0, -0.2, pt); r.rotation.z = lerp(0, -1.2, pt);
+                        }
+                    }
+                } else {
+                    const pt = t;
+                    p.position.x = lerp(state.racket.x-1.5, state.racket.x+1.5, pt);
+                    if(state.shotType==='SLICE') p.position.y = lerp(state.racket.y+1.0, state.racket.y-0.5, pt);
+                    else p.position.y = lerp(state.racket.y-0.5, state.racket.y+0.5, pt);
+                    p.position.z = lerp(15, 12, pt);
+                    r.rotation.y = lerp(1.5, -1.5, pt);
+                }
+                if(t>=1) { state.swingPhase=3; state.swingTimer=0; }
+            }
+            else if(state.swingPhase === 3) { 
+                state.swingTimer += dt * 3;
+                if(state.swingTimer >= 1) state.swingPhase=0;
+            }
+            else { 
+                r.rotation.set(-Math.PI/4, 0, 0);
+                r.rotation.z = (state.mouse.x - state.racket.x) * -0.3;
+            }
+
+            const b = state.ball;
+            
+            if(state.phase==='SERVE' && state.server==='P1' && !b.active) {
+                b.x = p.position.x + 0.5; b.y = p.position.y + 0.5; b.z = 13;
+                if(state.swingPhase===2 && state.swingTimer>0.3 && state.swingTimer<0.7) hitBall('P1', true);
+            }
+            if(state.phase==='SERVE' && state.server==='P2' && Math.random()<0.01) {
+                state.phase='PLAY'; b.active=true; 
+                b.x=state.p2Pos.x; b.y=3; b.z=-12; b.vx=(Math.random()-0.5)*3; b.vy=4; b.vz=25; b.spin=1;
+                sfx('hit_hard');
+            }
+
+            if(state.phase==='PLAY' && b.active) {
+                const speed = Math.sqrt(b.vx*b.vx + b.vz*b.vz);
+                const lift = b.spin * speed * CFG.magnus * 0.001;
+                b.vy -= lift * dt;
+
+                b.vy -= CFG.gravity * dt;
+                b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
+                
+                const drag = b.spin < 0 ? 0.995 : 0.99;
+                b.vx *= drag; b.vz *= drag;
+
+                if(b.y <= 0.08) {
+                    b.y = 0.08; b.vy *= -CFG.bounce;
+                    if (b.spin < 0) { b.vz *= 0.98; b.vy *= 0.8; } else { b.vz *= 0.85; b.vy *= 1.1; }
+                    if(Math.abs(b.vy)>1) { sfx('bounce'); addBallMark(b.x, b.z); }
+                    if(Math.abs(b.x)>7 || Math.abs(b.z)>14) {
+                        if(b.vz<0) score('P2', 'OUT'); else score('P1', 'OUT'); b.active=false;
+                    }
+                }
+
+                if(Math.abs(b.z)<0.1 && b.y < CFG.netHeight) {
+                    b.vz *= -0.3; b.vx *= 0.5; b.active = false;
+                    b.z = (b.z > 0) ? 0.3 : -0.3; // Push out of net
+                    sfx('bounce');
+                    if(b.z > 0) score('P1', 'NET'); else score('P2', 'NET');
+                }
+                
+                if(b.z>25) score('P2', 'WINNER'); if(b.z<-16) score('P1', 'WINNER');
+
+                // Hit Detection (Adjusted for new racket pos z=14)
+                if(b.vz > 0 && b.z > 10 && b.z < 16) {
+                    if(state.swingPhase === 2) {
+                        const dx = b.x - p.position.x; const dy = b.y - p.position.y;
+                        if(Math.sqrt(dx*dx+dy*dy) < CFG.hitRadius) hitBall('P1', false);
+                    }
+                }
+                if(b.vz < 0 && b.z < -11 && b.z > -14) {
+                    const dx = b.x - state.p2Pos.x; const dy = b.y - state.p2Pos.y;
+                    if(Math.sqrt(dx*dx+dy*dy) < 3.0) hitBall('P2', false);
+                }
+            }
+
+            if(b.active && b.vz<0) {
+                state.p2Pos.x += (b.x - state.p2Pos.x)*0.05;
+                state.p2Pos.y += (b.y - state.p2Pos.y)*0.05;
+            } else { state.p2Pos.x *= 0.95; state.p2Pos.y += (2-state.p2Pos.y)*0.05; }
+            p2Racket.pivot.position.set(state.p2Pos.x, state.p2Pos.y, -13);
+            p2Racket.mesh.rotation.y = Math.PI;
+        }
+
+        function hitBall(who, isServe) {
+            const b = state.ball;
+            if(who === 'P1') {
+                state.freezeFrame = 3;
+                document.getElementById('flash').style.opacity = 0.2;
+                setTimeout(()=>document.getElementById('flash').style.opacity=0, 50);
+                
+                const isSlice = state.shotType === 'SLICE';
+                b.spin = isSlice ? -1.5 : 1.5;
+                sfx(isSlice ? 'hit_slice' : 'hit_hard');
+                
+                state.shake = 0.5;
+                b.active = true;
+                
+                // Improved Net Clearance Logic
+                // Add upward force to ensure clearing net
+                const netClearanceBoost = 2.0;
+
+                if(isServe) {
+                    state.phase = 'PLAY'; 
+                    b.vz = -32; 
+                    b.vy = 3; 
+                    b.vx = state.mouse.x * -1.5; 
+                    b.spin = 1.0;
+                    showUI("SERVE!", 110);
+                } else {
+                    // Faster drive for top spin
+                    b.vz = isSlice ? -22 : -38 - Math.random()*4; // Increased speed from -30 to -38 for flatter shots
+                    
+                    // Trajectory Calculation
+                    // Lowered base height for Topspin to prevent "Badminton" loops
+                    if (isSlice) {
+                        b.vy = 3 + netClearanceBoost; // Slice needs some loft to float
+                    } else {
+                        // Topspin: Flatter trajectory
+                        // Mouse Y (0.5 to 5) controls height somewhat
+                        b.vy = 1.5 + (state.mouse.y * 0.5); 
+                    }
+                    
+                    let aim = (b.x - state.racket.x) * 4; 
+                    if(state.swingType === 'FH') aim -= 2; 
+                    if(state.mouse.x > 2) aim += 5; if(state.mouse.x < -2) aim -= 5;
+                    
+                    // Normalize aim to keep in court
+                    aim = aim * 0.8; 
+                    b.vx = aim;
+                    
+                    showUI(isSlice ? "SLICE" : "TOP SPIN", Math.abs(b.vz)*3);
+                }
+            } else {
+                sfx('hit_hard', 0.7);
+                b.vz = 24 + Math.random()*5;
+                b.vx = (b.x * -0.6) + (Math.random()-0.5)*3;
+                b.vy = 7; b.spin = 1.0;
+                p2Racket.mesh.rotation.x = -1.5;
+                setTimeout(()=>p2Racket.mesh.rotation.x=0, 200);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(state.freezeFrame > 0) { state.freezeFrame--; return; }
+            update(0.016);
+
+            const b = state.ball;
+            ball.position.set(b.x, b.y, b.z);
+            shadow.position.set(b.x, 0.02, b.z);
+            
+            if(state.shake > 0) {
+                camera.position.x = (Math.random()-0.5)*state.shake;
+                camera.position.y = CFG.camHeight + (Math.random()-0.5)*state.shake;
+                state.shake -= 0.05;
+                if(state.shake < 0) { state.shake=0; camera.position.set(0, CFG.camHeight, CFG.camDist); }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onresize = () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+        animate();
+
+    </script>
+</body>
+</html>
