@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interstellar - Wormhole Journey</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            user-select: none;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 50px;
+            z-index: 5;
+            transition: opacity 1s ease;
+        }
+
+        /* Minimalist Cinematic HUD */
+        #hud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            box-sizing: border-box;
+            padding: 40px;
+            opacity: 0;
+            transition: opacity 1.5s ease;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .hud-text {
+            font-weight: 300;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .hud-value {
+            font-size: 28px;
+            font-weight: 500;
+        }
+
+        .top-left { position: absolute; top: 40px; left: 40px; }
+        .bottom-right { position: absolute; bottom: 40px; right: 40px; text-align: right; }
+
+        /* Status Text */
+        #status-text {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+            letter-spacing: 10px;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.8s;
+        }
+
+        .instruction {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-top: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Start Overlay */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 10;
+            cursor: pointer;
+            transition: opacity 1.5s ease-out;
+            pointer-events: auto;
+        }
+        h1 {
+            color: #ffffff;
+            font-weight: 100;
+            letter-spacing: 20px;
+            margin-bottom: 20px;
+            font-size: 48px;
+        }
+        .sub {
+            color: #aaaaaa;
+            font-size: 14px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay">
+        <h1>INTERSTELLAR</h1>
+        <div class="sub">Click to Start Journey</div>
+    </div>
+
+    <!-- HUD Layer -->
+    <div id="hud-layer">
+        <div id="status-text">Approaching Event Horizon</div>
+
+        <div class="top-left">
+            <div class="hud-text">System Status: Normal</div>
+        </div>
+
+        <div class="bottom-right">
+            <div class="hud-text">Gravity Reading</div>
+            <div class="hud-value" id="gravity-val">1.0 G</div>
+        </div>
+    </div>
+
+    <!-- Game UI -->
+    <div id="ui-layer" style="opacity: 0;">
+        <div class="instruction">Hold SPACE to Enter Wormhole</div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Import Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+        import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+
+        // --- Configuration ---
+        const CONFIG = {
+            colors: {
+                bg: 0x000000,
+                shipHull: 0xffffff, // Ranger White
+                shipDark: 0x111111, // Heat tiles
+                engineGlow: 0x88ccff, // Blue Ion
+                window: 0x111111
+            },
+            normalSpeed: 0.3,
+            wormholeSpeed: 4.0,
+            wormholeDistance: 200 // Further away for scale
+        };
+
+        // --- Audio Manager (Hans Zimmer Style Organ Drone) ---
+        const AudioSys = {
+            ctx: null,
+            masterGain: null,
+            oscillators: [],
+            filter: null,
+            isInit: false,
+
+            init: function() {
+                if (this.isInit) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.3;
+                
+                // Lowpass filter for the "muffled" space sound that opens up
+                this.filter = this.ctx.createBiquadFilter();
+                this.filter.type = 'lowpass';
+                this.filter.frequency.value = 200;
+                this.filter.Q.value = 1;
+
+                this.masterGain.connect(this.filter);
+                this.filter.connect(this.ctx.destination);
+
+                // Interstellar Chord (C Minor / Organ texture)
+                // C2, G2, C3, Eb3, G3
+                const freqs = [65.41, 98.00, 130.81, 155.56, 196.00];
+                
+                freqs.forEach((f, i) => {
+                    const osc = this.ctx.createOscillator();
+                    osc.type = i % 2 === 0 ? 'sawtooth' : 'triangle';
+                    osc.frequency.value = f;
+                    
+                    // Detune for thickness
+                    osc.detune.value = (Math.random() - 0.5) * 10;
+
+                    const oscGain = this.ctx.createGain();
+                    oscGain.gain.value = 0.1 / freqs.length;
+
+                    osc.connect(oscGain);
+                    oscGain.connect(this.masterGain);
+                    osc.start();
+                    
+                    this.oscillators.push({osc, gain: oscGain, baseFreq: f});
+                });
+
+                // Sub-bass rumble
+                const sub = this.ctx.createOscillator();
+                sub.type = 'sine';
+                sub.frequency.value = 32.70; // C1
+                const subGain = this.ctx.createGain();
+                subGain.gain.value = 0.2;
+                sub.connect(subGain);
+                subGain.connect(this.masterGain);
+                sub.start();
+                this.oscillators.push({osc: sub, gain: subGain, baseFreq: 32.70});
+
+                this.isInit = true;
+            },
+
+            updateEngine: function(speed) {
+                if (!this.isInit) return;
+                
+                // Filter opens up with speed (Drama!)
+                const targetFreq = 200 + (speed * 2000);
+                this.filter.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.2);
+                
+                // Volume swell
+                const vol = 0.3 + (speed * 0.4);
+                this.masterGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.1);
+
+                // Slight pitch bend for tension
+                this.oscillators.forEach(o => {
+                    o.osc.detune.setTargetAtTime(speed * 50, this.ctx.currentTime, 0.1);
+                });
+            },
+
+            playImpact: function() {
+                if (!this.isInit) return;
+                // Metallic impact sound
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.8);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.8);
+                
+                // Filter for impact
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(3000, this.ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.5);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.8);
+            }
+        };
+
+        // --- State ---
+        let scene, camera, renderer, composer;
+        let ship, wormholeSphere, accretionDisk;
+        let backgroundSphere;
+        let asteroids = [];
+        let score = 0;
+        let health = 100;
+        
+        let gameActive = false;
+        let isEntering = false;
+        let currentSpeed = CONFIG.normalSpeed;
+        let time = 0;
+        let distanceTraveled = 0;
+        
+        const mouse = new THREE.Vector2();
+        const targetPos = new THREE.Vector2();
+
+        // UI References
+        const gravityVal = document.getElementById('gravity-val');
+        const statusText = document.getElementById('status-text');
+        
+        // Add Score/Health UI
+        const scoreDiv = document.createElement('div');
+        scoreDiv.className = 'top-left';
+        scoreDiv.style.top = '80px';
+        scoreDiv.innerHTML = '<div class="hud-text">DISTANCE: <span id="score-val">0</span> LY</div><div class="hud-text" style="margin-top:10px">HULL INTEGRITY: <span id="health-val">100</span>%</div>';
+        document.getElementById('hud-layer').appendChild(scoreDiv);
+        const scoreEl = document.getElementById('score-val');
+        const healthEl = document.getElementById('health-val');
+
+        // --- Custom Shader: Gravitational Lensing ---
+        // Fix: Removed projectionMatrix and modelViewMatrix, use screen coordinates instead
+        const GravitationalLensingShader = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "uWormholeScreenPos": { value: new THREE.Vector2(0.5, 0.5) }, // vec2 screen coords
+                "uWormholeRadius": { value: 30.0 },
+                "uIntensity": { value: 1.0 },
+                "uResolution": { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform vec2 uWormholeScreenPos;
+                uniform float uWormholeRadius;
+                uniform float uIntensity;
+                uniform vec2 uResolution;
+                varying vec2 vUv;
+
+                void main() {
+                    // Convert current pixel texture coords to screen space coords (-1 to 1)
+                    vec2 screenPos = vUv * 2.0 - 1.0;
+                    screenPos.x *= uResolution.x / uResolution.y; // Fix aspect ratio
+
+                    // Wormhole center is already in screen space coords (calculated in JS)
+                    vec2 wormholeNDC = uWormholeScreenPos;
+                    wormholeNDC.x *= uResolution.x / uResolution.y;
+
+                    // Calculate distance from current pixel to wormhole center
+                    float dist = distance(screenPos, wormholeNDC);
+
+                    // Calculate distortion intensity: closer = stronger
+                    // uWormholeRadius is used as intensity coefficient here, not physical radius
+                    float distortion = uWormholeRadius / (dist * dist + 0.1);
+                    distortion = clamp(distortion, 0.0, 10.0) * uIntensity * 0.005;
+
+                    // Calculate distortion direction
+                    vec2 dir = normalize(screenPos - wormholeNDC);
+
+                    // Apply distortion
+                    vec2 distortedUv = vUv - dir * distortion;
+
+                    // Sample distorted texture
+                    vec4 color = texture2D(tDiffuse, distortedUv);
+
+                    gl_FragColor = color;
+                }
+            `
+        };
+
+        // --- Helper: Create Background Texture ---
+        function createNebulaTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024; canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+            
+            // Deep Space Background
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0,0,1024,1024);
+
+            // Draw Nebula Layers
+            for(let i=0; i<5; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 1024;
+                const radius = 200 + Math.random() * 400;
+                const grad = ctx.createRadialGradient(x,y,0, x,y,radius);
+                const r = Math.floor(Math.random() * 50);
+                const g = Math.floor(Math.random() * 100);
+                const b = Math.floor(Math.random() * 150 + 100);
+                grad.addColorStop(0, `rgba(${r},${g},${b}, 0.2)`);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0,0,1024,1024);
+            }
+
+            // Draw Stars
+            ctx.fillStyle = '#ffffff';
+            for(let i=0; i<2000; i++) {
+                const x = Math.random() * 1024;
+                const y = Math.random() * 1024;
+                const size = Math.random() * 1.5;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI*2);
+                ctx.fill();
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.002); // Add subtle fog for depth
+            
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 2, 12); // Moved closer
+            camera.lookAt(0, 0, -CONFIG.wormholeDistance);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping; // Better tone mapping
+            renderer.toneMappingExposure = 1.0;
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // --- Post-Processing Stack ---
+            const renderPass = new RenderPass(scene, camera);
+            
+            // 1. Bloom
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                1.5, 0.4, 0.85
+            );
+            bloomPass.threshold = 0.2; // Lower threshold to catch stars
+            bloomPass.strength = 0.8;  // Reduced strength to avoid "flash"
+            bloomPass.radius = 0.5;
+
+            // 2. Gravitational Lensing Shader
+            const lensingPass = new ShaderPass(GravitationalLensingShader);
+            lensingPass.uniforms["uResolution"].value.set(window.innerWidth, window.innerHeight);
+
+            // 3. Film Grain
+            const filmPass = new FilmPass(
+                0.20,   // noise intensity
+                0.025,  // scanline intensity
+                648,    // scanline count
+                false   // grayscale
+            );
+
+            composer = new EffectComposer(renderer);
+            composer.addPass(renderPass);
+            composer.addPass(bloomPass);
+            composer.addPass(lensingPass);
+            composer.addPass(filmPass);
+
+            // Lighting - Balanced for realism
+            const ambient = new THREE.HemisphereLight(0x444444, 0x000000, 1.0); // Sky/Ground ambient
+            scene.add(ambient);
+            
+            // Key Light (Sun/Nebula)
+            const keyLight = new THREE.DirectionalLight(0xffddaa, 1.5);
+            keyLight.position.set(5, 10, 15);
+            keyLight.castShadow = true;
+            keyLight.shadow.mapSize.width = 1024;
+            keyLight.shadow.mapSize.height = 1024;
+            scene.add(keyLight);
+
+            // Rim Light (Blue star/Wormhole glow)
+            const rimLight = new THREE.DirectionalLight(0x4488ff, 1.0);
+            rimLight.position.set(-10, 0, -10); // Backlight
+            scene.add(rimLight);
+
+            // Object Creation
+            createIndustrialSpacecraft();
+            createDetailedBackground();
+            createWormholeSystem();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('keydown', (e) => { if (e.code === 'Space') isEntering = true; });
+            document.addEventListener('keyup', (e) => { if (e.code === 'Space') isEntering = false; });
+            document.addEventListener('touchstart', () => isEntering = true);
+            document.addEventListener('touchend', () => isEntering = false);
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+
+            const overlay = document.getElementById('start-overlay');
+            overlay.addEventListener('click', () => {
+                gameActive = true;
+                AudioSys.init(); // Start Audio Context
+                
+                // Reset ship rotation to face forward (0,0,0)
+                if(ship) ship.rotation.set(0, 0, 0);
+                
+                overlay.style.opacity = 0;
+                document.getElementById('hud-layer').style.opacity = 1;
+                document.getElementById('ui-layer').style.opacity = 1;
+                setTimeout(() => overlay.style.display = 'none', 1500);
+            });
+
+            animate();
+        }
+
+        // --- Asteroid System (High Detail) ---
+        function spawnAsteroid() {
+            // Use Dodecahedron for rockier shape
+            const geo = new THREE.DodecahedronGeometry(Math.random() * 2 + 1, 1);
+            
+            // Displace vertices for randomness
+            const posAttribute = geo.attributes.position;
+            for (let i = 0; i < posAttribute.count; i++) {
+                const x = posAttribute.getX(i);
+                const y = posAttribute.getY(i);
+                const z = posAttribute.getZ(i);
+                // Simple noise displacement
+                const amp = 0.2;
+                posAttribute.setXYZ(i, 
+                    x + (Math.random()-0.5)*amp, 
+                    y + (Math.random()-0.5)*amp, 
+                    z + (Math.random()-0.5)*amp
+                );
+            }
+            geo.computeVertexNormals();
+
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: 0x666666, 
+                roughness: 0.9,
+                metalness: 0.1,
+                flatShading: true
+            });
+            const asteroid = new THREE.Mesh(geo, mat);
+            
+            // Spawn far away
+            asteroid.position.z = -300; // Further back
+            
+            // Random X/Y but avoid center initially to be fair
+            // Range: -80 to 80
+            let x = (Math.random() - 0.5) * 160;
+            let y = (Math.random() - 0.5) * 100;
+            
+            // Simple check to avoid direct spawn in front (dead center)
+            if (Math.abs(x) < 15 && Math.abs(y) < 15) {
+                x += (Math.random() > 0.5 ? 30 : -30);
+            }
+
+            asteroid.position.x = x;
+            asteroid.position.y = y;
+            
+            // Random rotation
+            asteroid.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+            
+            scene.add(asteroid);
+            asteroids.push(asteroid);
+        }
+
+        function updateAsteroids() {
+            // Spawn logic based on speed
+            if (Math.random() < 0.05 * currentSpeed) {
+                spawnAsteroid();
+            }
+
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                const a = asteroids[i];
+                // Move towards camera
+                a.position.z += currentSpeed * 2.5; 
+                a.rotation.x += 0.01;
+                a.rotation.y += 0.02;
+
+                // Collision Check
+                if (ship) {
+                    const dist = a.position.distanceTo(ship.position);
+                    if (dist < 4) { // Hit radius
+                        health -= 25;
+                        healthEl.innerText = health;
+                        healthEl.style.color = 'red';
+                        setTimeout(() => healthEl.style.color = 'white', 200);
+                        
+                        AudioSys.playImpact();
+                        
+                        // Remove asteroid
+                        scene.remove(a);
+                        asteroids.splice(i, 1);
+                        
+                        // Camera shake impact
+                        camera.position.x += (Math.random()-0.5) * 4;
+                        camera.position.y += (Math.random()-0.5) * 4;
+
+                        if (health <= 0) {
+                            alert("CRITICAL FAILURE - EJECTING. Distance: " + Math.floor(score) + " LY");
+                            location.reload();
+                        }
+                        continue;
+                    }
+                }
+
+                // Cleanup if passed camera
+                if (a.position.z > 20) {
+                    scene.remove(a);
+                    asteroids.splice(i, 1);
+                }
+            }
+        }
+
+        // --- Create Detailed "Ranger" Style Spacecraft ---
+        function createIndustrialSpacecraft() {
+            ship = new THREE.Group();
+
+            // Materials - Ceramic Tile Look
+            const hullMat = new THREE.MeshStandardMaterial({ 
+                color: 0xeeeeee, // White ceramic
+                roughness: 0.2, 
+                metalness: 0.1,
+                flatShading: false
+            });
+            const darkMat = new THREE.MeshStandardMaterial({ 
+                color: 0x111111, // Black heat tiles
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const windowMat = new THREE.MeshPhysicalMaterial({ 
+                color: 0x000000, 
+                roughness: 0.0, 
+                metalness: 0.9,
+                transmission: 0.1,
+                clearcoat: 1.0
+            });
+            const engineMat = new THREE.MeshBasicMaterial({ color: 0x88ccff }); // Blue Ion
+
+            // 1. Main Body (Wedge Shape)
+            // Using a custom shape extruded or a modified box
+            const bodyGeo = new THREE.BoxGeometry(2, 0.6, 4);
+            const positionAttribute = bodyGeo.attributes.position;
+            
+            // Taper the front (vertices 0,1, 4,5 are front +z? No, check indices)
+            // Let's just use a simple shape extrusion for better control
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0.5); // Top nose
+            shape.lineTo(1.5, -2.5); // Back Right
+            shape.lineTo(0, -2.0); // Back Center notch
+            shape.lineTo(-1.5, -2.5); // Back Left
+            shape.lineTo(0, 0.5); // Close
+
+            const extrudeSettings = { 
+                steps: 1, 
+                depth: 0.6, 
+                bevelEnabled: true, 
+                bevelThickness: 0.1, 
+                bevelSize: 0.1, 
+                bevelSegments: 3 
+            };
+            
+            const rangerGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            rangerGeo.center(); // Center geometry
+            rangerGeo.rotateX(Math.PI / 2); // Lay flat
+            rangerGeo.rotateY(Math.PI); // Point forward (-Z)
+
+            const body = new THREE.Mesh(rangerGeo, hullMat);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            ship.add(body);
+
+            // 2. Cockpit Windows (Black strips)
+            const winGeo = new THREE.BoxGeometry(0.8, 0.05, 0.5);
+            const win1 = new THREE.Mesh(winGeo, windowMat);
+            win1.position.set(0, 0.31, -0.5);
+            win1.rotation.x = 0.1;
+            ship.add(win1);
+
+            const win2 = new THREE.Mesh(winGeo, windowMat);
+            win2.position.set(0, 0.31, -1.0);
+            win2.rotation.x = 0.15;
+            win2.scale.set(0.8, 1, 1);
+            ship.add(win2);
+
+            // 3. Rear Engines
+            const engineGeo = new THREE.BoxGeometry(0.4, 0.2, 0.1);
+            const eng1 = new THREE.Mesh(engineGeo, engineMat);
+            eng1.position.set(-0.8, 0, 1.5);
+            ship.add(eng1);
+            
+            const eng2 = new THREE.Mesh(engineGeo, engineMat);
+            eng2.position.set(0.8, 0, 1.5);
+            ship.add(eng2);
+
+            // Engine Glow Sprites
+            const spriteMat = new THREE.SpriteMaterial({ 
+                map: new THREE.CanvasTexture(generateGlowTexture()), 
+                color: 0x4488ff, 
+                transparent: true, 
+                blending: THREE.AdditiveBlending 
+            });
+            
+            const glow1 = new THREE.Sprite(spriteMat);
+            glow1.scale.set(2, 2, 1);
+            glow1.position.set(-0.8, 0, 1.6);
+            ship.add(glow1);
+
+            const glow2 = new THREE.Sprite(spriteMat);
+            glow2.scale.set(2, 2, 1);
+            glow2.position.set(0.8, 0, 1.6);
+            ship.add(glow2);
+
+            // 4. Detail Panels (Black Tiles)
+            const panelGeo = new THREE.PlaneGeometry(0.5, 0.5);
+            const panel1 = new THREE.Mesh(panelGeo, darkMat);
+            panel1.rotation.x = -Math.PI / 2;
+            panel1.position.set(0, 0.31, 0.5);
+            ship.add(panel1);
+
+            ship.position.set(0, 0, 5); 
+            scene.add(ship);
+        }
+
+        function generateGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.4, 'rgba(100, 200, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 64, 64);
+            return canvas;
+        }
+
+        // --- Create Detailed Background (Milky Way) ---
+        function createDetailedBackground() {
+            const texture = createNebulaTexture();
+            const geo = new THREE.SphereGeometry(1000, 64, 64);
+            const mat = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.BackSide,
+                fog: false
+            });
+            backgroundSphere = new THREE.Mesh(geo, mat);
+            scene.add(backgroundSphere);
+
+            // High density starfield
+            const starsGeo = new THREE.BufferGeometry();
+            const starsPos = [];
+            const starsColor = [];
+            for(let i=0; i<5000; i++) {
+                const r = 800 + Math.random() * 200;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                
+                starsPos.push(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+                
+                const starType = Math.random();
+                let col = new THREE.Color();
+                if(starType > 0.9) col.setHex(0xaaaaff); // Blue giant
+                else if(starType > 0.7) col.setHex(0xffddaa); // Yellow
+                else col.setHex(0xffffff); // White
+                
+                starsColor.push(col.r, col.g, col.b);
+            }
+            starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPos, 3));
+            starsGeo.setAttribute('color', new THREE.Float32BufferAttribute(starsColor, 3));
+            
+            const starsMat = new THREE.PointsMaterial({
+                vertexColors: true,
+                size: 1.5,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: true
+            });
+            const starSystem = new THREE.Points(starsGeo, starsMat);
+            scene.add(starSystem);
+        }
+
+        // --- Create Wormhole System (Gargantua Style) ---
+        function createWormholeSystem() {
+            // 1. Event Horizon (Black Sphere)
+            const sphereGeo = new THREE.SphereGeometry(30, 64, 64);
+            const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            wormholeSphere = new THREE.Mesh(sphereGeo, sphereMat);
+            wormholeSphere.position.set(0, 0, -CONFIG.wormholeDistance);
+            scene.add(wormholeSphere);
+
+            // 2. Accretion Disk (Main Ring)
+            const diskGeo = new THREE.RingGeometry(35, 80, 128, 1);
+            const diskMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime: { value: 0 },
+                    uColor1: { value: new THREE.Color(0xffaa44) }, // Hot Orange
+                    uColor2: { value: new THREE.Color(0xffffff) }, // White Hot
+                    uColor3: { value: new THREE.Color(0xaa4400) }  // Dark Red
+                },
+                vertexShader: `
+                    varying vec2 vUv;
+                    varying vec3 vPos;
+                    void main() {
+                        vUv = uv;
+                        vPos = position;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform float uTime;
+                    uniform vec3 uColor1;
+                    uniform vec3 uColor2;
+                    uniform vec3 uColor3;
+                    varying vec2 vUv;
+                    varying vec3 vPos;
+
+                    float noise(vec2 p) {
+                        return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+                    }
+
+                    void main() {
+                        vec2 center = vUv - 0.5;
+                        float r = length(center) * 2.0; 
+                        float a = atan(center.y, center.x);
+
+                        // Rotation
+                        float angle = a + uTime * 0.2 + 10.0 / r; // Differential rotation (faster inside)
+
+                        // Noise rings
+                        float ringNoise = sin(r * 40.0 + angle * 2.0);
+                        float detailNoise = noise(vec2(r * 10.0, angle * 5.0));
+                        
+                        // Gaps (Black lines)
+                        float gaps = smoothstep(0.4, 0.5, sin(r * 20.0));
+                        
+                        float intensity = smoothstep(0.0, 0.1, r) * smoothstep(1.0, 0.8, r);
+                        intensity *= (0.5 + 0.5 * ringNoise);
+                        intensity *= (0.8 + 0.2 * detailNoise);
+                        intensity *= (0.2 + 0.8 * gaps); // Apply gaps
+
+                        // Color Gradient based on temperature (radius)
+                        vec3 col = mix(uColor3, uColor1, smoothstep(0.0, 0.5, r));
+                        col = mix(col, uColor2, smoothstep(0.5, 0.8, r));
+
+                        // Doppler beaming (brighter on left, dimmer on right)
+                        float doppler = 1.0 + 0.5 * sin(a + 1.5); // Simple approximation
+                        
+                        gl_FragColor = vec4(col * intensity * doppler * 2.0, intensity);
+                    }
+                `,
+                side: THREE.DoubleSide,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            accretionDisk = new THREE.Mesh(diskGeo, diskMat);
+            accretionDisk.position.set(0, 0, -CONFIG.wormholeDistance);
+            accretionDisk.rotation.x = Math.PI / 2.2; // Tilt
+            accretionDisk.rotation.y = Math.PI / 8;
+            scene.add(accretionDisk);
+
+            // 3. Photon Ring (Thin bright ring at event horizon)
+            const photonGeo = new THREE.RingGeometry(30.5, 31.5, 128);
+            const photonMat = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff, 
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending
+            });
+            const photonRing = new THREE.Mesh(photonGeo, photonMat);
+            photonRing.position.copy(wormholeSphere.position);
+            photonRing.lookAt(camera.position); // Always face camera
+            scene.add(photonRing);
+        }
+
+        // --- Interaction ---
+        function onMouseMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onTouchMove(e) {
+            e.preventDefault();
+            mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+            // Update Shader Resolution
+            composer.passes[2].uniforms["uResolution"].value.set(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!gameActive) {
+                // Idle animation: slowly rotate ship
+                if(ship) ship.rotation.y += 0.002;
+                if(ship) ship.rotation.z = Math.sin(Date.now()*0.001)*0.05;
+                composer.render();
+                return;
+            }
+
+            time += 0.01;
+
+            // 1. Speed and State Control
+            let targetSpeed = isEntering ? CONFIG.wormholeSpeed : CONFIG.normalSpeed;
+            // Slow acceleration/deceleration, simulating mass inertia
+            currentSpeed += (targetSpeed - currentSpeed) * 0.01;
+            distanceTraveled += currentSpeed;
+            
+            // Update Score
+            score += currentSpeed * 0.1;
+            scoreEl.innerText = Math.floor(score);
+
+            // Update Audio
+            AudioSys.updateEngine(currentSpeed);
+
+            // Update Gameplay Elements
+            updateAsteroids();
+
+            // 2. Visual Effects Update
+            if(currentSpeed > 1.5) {
+                statusText.style.opacity = 1;
+                statusText.innerText = "Crossing Event Horizon";
+                // Increase Bloom strength
+                composer.passes[1].strength = 0.8 + (currentSpeed - 1.5) * 0.5;
+            } else {
+                statusText.style.opacity = 0;
+                composer.passes[1].strength = 0.8;
+            }
+
+            // --- Fix: Calculate screen coords in JS and pass to Shader ---
+            const lensingShader = composer.passes[2];
+            
+            // Increase distortion as we get closer
+            let lensIntensity = 1.0 + currentSpeed * 2.0;
+            // Simulate ship approaching wormhole
+            let wormholeZ = -CONFIG.wormholeDistance + distanceTraveled * 0.1;
+            if (wormholeZ > -20) wormholeZ = -CONFIG.wormholeDistance; // Loop
+
+            // Calculate wormhole world position
+            let wormholeWorldPos = new THREE.Vector3(0, 0, wormholeZ);
+            
+            // Project to NDC space (-1 to 1)
+            let wormholeNDC = wormholeWorldPos.clone().project(camera);
+
+            // Update Uniforms
+            // Note: If wormhole is behind camera (z > 1), disable distortion
+            if (wormholeNDC.z > 1.0) {
+                 lensingShader.uniforms["uIntensity"].value = 0.0;
+            } else {
+                 lensingShader.uniforms["uIntensity"].value = lensIntensity;
+                 lensingShader.uniforms["uWormholeScreenPos"].value.set(wormholeNDC.x, wormholeNDC.y);
+            }
+            
+            // Update Accretion Disk Animation
+            if (accretionDisk) {
+                accretionDisk.material.uniforms.uTime.value = time;
+                accretionDisk.position.z = wormholeZ;
+                accretionDisk.rotation.z += 0.005 * currentSpeed; // Accelerate rotation
+            }
+            
+            // Update other wormhole components
+            if (wormholeSphere) wormholeSphere.position.z = wormholeZ;
+            // Find photon ring (it was added to scene directly, let's find it by geometry type or just assume it's the last child... risky)
+            // Better: iterate scene children or just leave it if I didn't save a reference. 
+            // Wait, I didn't save 'photonRing' to a global var in createWormholeSystem. 
+            // I should have. But I can find it.
+            scene.children.forEach(child => {
+                if(child.geometry && child.geometry.type === 'RingGeometry' && child !== accretionDisk) {
+                    child.position.z = wormholeZ;
+                    child.lookAt(camera.position);
+                }
+            });
+
+            // Slowly rotate background nebula
+            if(backgroundSphere) {
+                backgroundSphere.rotation.y += 0.0002 * currentSpeed;
+            }
+
+            // Camera Shake (at high speed)
+            if(currentSpeed > 2.5) {
+                camera.position.x += (Math.random()-0.5) * 0.05 * (currentSpeed-2);
+                camera.position.y += (Math.random()-0.5) * 0.05 * (currentSpeed-2);
+            }
+
+            // Update UI Data
+            let gForce = 1.0 + (currentSpeed * currentSpeed) / 5.0;
+            gravityVal.innerText = gForce.toFixed(1) + " G";
+
+            // 3. Ship Physics (Heavy feel)
+            const limitX = 12;
+            const limitY = 7;
+            targetPos.x = mouse.x * limitX;
+            targetPos.y = mouse.y * limitY;
+
+            // Very smooth interpolation
+            ship.position.x += (targetPos.x - ship.position.x) * 0.02;
+            ship.position.y += (targetPos.y - ship.position.y) * 0.02;
+
+            // Banking
+            ship.rotation.z = (ship.position.x - targetPos.x) * 0.03;
+            ship.rotation.x = (ship.position.y - targetPos.y) * 0.02;
+            
+            // Slow floating feel
+            ship.position.y += Math.sin(time * 1.2) * 0.02;
+
+            // 4. Camera Follow (Lag)
+            const camTargetX = ship.position.x * 0.2;
+            const camTargetY = ship.position.y * 0.2 + 2.5; 
+            
+            camera.position.x += (camTargetX - camera.position.x) * 0.03;
+            camera.position.y += (camTargetY - camera.position.y) * 0.03;
+            // Always look at wormhole center
+            camera.lookAt(0, 0, wormholeZ);
+
+            composer.render();
+        }
+
+        init();
+
+    </script>
+</body>
+</html>

@@ -13,6 +13,7 @@ The repository is structured to host multiple isolated test cases, allowing for 
 - **ServerlessLLM Demo**: A 3D visualization of a locality-enhanced inference system for LLMs, featuring an academic black-and-white aesthetic.
 - **Spacegram**: A mimic ability test recreating an existing website design.
 - **JoJo Maker**: A creative tool for generating JoJo's Bizarre Adventure style character cards.
+- **Stellar Shuttle**: An immersive Interstellar-inspired space simulation featuring a Ranger spacecraft, black hole visualization, and dynamic audio synthesis.
 
 ## Usage
 
