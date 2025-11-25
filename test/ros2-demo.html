@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROS 2 Communication Architecture - Detailed View</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #ffffff; font-family: 'Times New Roman', Times, serif; display: flex; }
+        
+        /* Layout */
+        #sidebar {
+            width: 350px;
+            height: 100vh;
+            background: #f8f8f8;
+            border-right: 1px solid #000;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+        
+        #canvas-container { 
+            flex-grow: 1; 
+            height: 100vh; 
+            position: relative;
+        }
+
+        /* Typography */
+        h1 { margin: 0 0 10px 0; font-size: 24px; text-decoration: underline; }
+        h2 { margin: 20px 0 10px 0; font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        p { margin: 10px 0; font-size: 15px; line-height: 1.6; text-align: justify; }
+        ul { padding-left: 20px; margin: 10px 0; font-size: 15px; }
+        li { margin-bottom: 5px; }
+        
+        /* Controls */
+        .controls {
+            margin-top: auto;
+            border-top: 1px solid #000;
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        button {
+            background: #fff;
+            border: 1px solid #000;
+            padding: 8px 16px;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover { background: #eee; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Step Indicator */
+        .step-indicator {
+            font-size: 12px;
+            text-align: center;
+            margin-top: 10px;
+            color: #555;
+        }
+
+        /* 3D Scene Overlay */
+        #scene-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        .annotation {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #000;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        /* Legend */
+        .legend-item { display: flex; align-items: center; margin-bottom: 5px; font-size: 13px; }
+        .dot { width: 10px; height: 10px; margin-right: 10px; border: 1px solid #000; }
+        .dot.topic { background: #000; border-radius: 50%; }
+        .dot.service { background: transparent; transform: rotate(45deg); }
+        .dot.action { background: #ccc; }
+
+    </style>
+</head>
+<body>
+
+<!-- Sidebar for Detailed Text -->
+<div id="sidebar">
+    <h1>ROS 2 Architecture</h1>
+    <div id="content-area">
+        <!-- Dynamic Content Injected Here -->
+    </div>
+    
+    <div class="controls">
+        <button id="btn-prev" onclick="changeStep(-1)">&#8592; Previous</button>
+        <div class="step-indicator" id="step-display">1 / 5</div>
+        <button id="btn-next" onclick="changeStep(1)">Next &#8594;</button>
+    </div>
+</div>
+
+<!-- 3D Canvas -->
+<div id="canvas-container">
+    <div id="scene-overlay">
+        <!-- Legend always visible -->
+        <div class="annotation">
+            <strong>Legend:</strong>
+            <div class="legend-item"><div class="dot topic"></div>Topics (Stream)</div>
+            <div class="legend-item"><div class="dot service"></div>Services (Request)</div>
+            <div class="legend-item"><div class="dot action"></div>Actions (Goal)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- OrbitControls -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- TWEEN for smooth camera -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+<script>
+    // --- Data: Tutorial Content ---
+    const steps = [
+        {
+            title: "1. The Computation Graph",
+            text: `
+                <p>The fundamental architecture of ROS 2 is the <strong>Computation Graph</strong>. Unlike a monolithic program, a ROS application is composed of many independent "Nodes" operating in parallel.</p>
+                <p>This decentralized approach allows for:</p>
+                <ul>
+                    <li><strong>Fault Tolerance:</strong> If one node crashes, the others survive.</li>
+                    <li><strong>Language Agnosticism:</strong> Python nodes can talk to C++ nodes seamlessly.</li>
+                    <li><strong>Modularity:</strong> Components can be swapped easily (e.g., changing a laser driver).</li>
+                </ul>
+                <p>In this visualization, we see a simple robot stack with a Camera, Perception system, Path Planner, Battery Monitor, and Motor Driver.</p>
+            `,
+            camPos: { x: 0, y: 25, z: 40 },
+            camTarget: { x: 0, y: 0, z: 0 }
+        },
+        {
+            title: "2. Nodes (The Processes)",
+            text: `
+                <p><strong>Definition:</strong> A Node is a single executable process that performs a specific computation.</p>
+                <p>Nodes are the "workers" of the graph. In the scene, the <em>Perception Node</em> (center left) receives raw data and processes it.</p>
+                <p>In ROS 2, nodes use the <strong>DDS (Data Distribution Service)</strong> middleware to discover each other dynamically. There is no central "Master" node as there was in ROS 1, making the network more robust.</p>
+            `,
+            camPos: { x: -15, y: 10, z: 15 },
+            camTarget: { x: -10, y: 0, z: 0 }
+        },
+        {
+            title: "3. Topics (Publish / Subscribe)",
+            text: `
+                <p><strong>Mechanism:</strong> Asynchronous, Many-to-Many streaming.</p>
+                <p>Topics are the pipes of ROS 2. Nodes "Publish" data to a named topic (e.g., <em>/camera/image_raw</em>) or "Subscribe" to it.</p>
+                <p><strong>Visualized:</strong> The stream of black particles flowing from Camera &rarr; Perception &rarr; Planner.</p>
+                <p>Key Characteristics:</p>
+                <ul>
+                    <li><strong>Fire and Forget:</strong> The publisher doesn't care if anyone is listening.</li>
+                    <li><strong>Continuous:</strong> Ideal for high-frequency sensor data (30Hz+).</li>
+                    <li><strong>Decoupled:</strong> Adding a new subscriber doesn't affect the publisher.</li>
+                </ul>
+            `,
+            camPos: { x: -5, y: 8, z: 10 },
+            camTarget: { x: -10, y: 2, z: 0 }
+        },
+        {
+            title: "4. Services (Request / Response)",
+            text: `
+                <p><strong>Mechanism:</strong> Synchronous, One-to-One transaction.</p>
+                <p>Sometimes a node needs a specific answer <em>now</em>. Services follow a Client/Server model.</p>
+                <p><strong>Visualized:</strong> The dashed line between the Planner and Battery Monitor. The Planner sends a request ("Check Battery"), waits, and the Monitor replies.</p>
+                <p>Key Characteristics:</p>
+                <ul>
+                    <li><strong>Blocking:</strong> The client typically pauses until the response arrives.</li>
+                    <li><strong>Reliable:</strong> Guaranteed delivery of the request and response.</li>
+                    <li><strong>Usage:</strong> Configuration changes, querying state, or quick calculations.</li>
+                </ul>
+            `,
+            camPos: { x: 5, y: 10, z: 10 },
+            camTarget: { x: 0, y: 5, z: 5 }
+        },
+        {
+            title: "5. Actions (Goal / Feedback)",
+            text: `
+                <p><strong>Mechanism:</strong> Asynchronous Goal with periodic Feedback.</p>
+                <p>Actions are used for long-running tasks where you don't want to block the thread, but still need to know what's happening.</p>
+                <p><strong>Visualized:</strong> The Planner sends a "Drive" goal to the Motor Driver. The progress bar above represents the feedback loop.</p>
+                <p>Structure:</p>
+                <ul>
+                    <li><strong>Goal:</strong> "Move to coordinate (10, 5)."</li>
+                    <li><strong>Feedback:</strong> "Moved 1 meter... 2 meters..." (Streamed to client).</li>
+                    <li><strong>Result:</strong> "Arrived safely."</li>
+                    <li><strong>Cancel:</strong> The client can abort the goal mid-execution.</li>
+                </ul>
+            `,
+            camPos: { x: 8, y: 8, z: 8 },
+            camTarget: { x: 8, y: 2, z: 0 }
+        }
+    ];
+
+    // --- Scene Setup ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff); 
+    scene.fog = new THREE.FogExp2(0xffffff, 0.02);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    // Initial Position (Step 0)
+    camera.position.set(steps[0].camPos.x, steps[0].camPos.y, steps[0].camPos.z);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Materials
+    const blackLineMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+    const dashedLineMat = new THREE.LineDashedMaterial({ color: 0x000000, dashSize: 0.5, gapSize: 0.3, scale: 1 });
+    const nodeGeometry = new THREE.BoxGeometry(2, 2, 2);
+    const nodeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+    const nodeEdgesMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+
+    // --- Object Creation ---
+    
+    function createNode(x, z, label) {
+        const group = new THREE.Group();
+        group.position.set(x, 0, z);
+
+        const cube = new THREE.Mesh(nodeGeometry, nodeMat);
+        group.add(cube);
+
+        const edges = new THREE.EdgesGeometry(nodeGeometry);
+        const line = new THREE.LineSegments(edges, nodeEdgesMat);
+        group.add(line);
+
+        // Label
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256; canvas.height = 128;
+        context.font = "Bold 24px Times New Roman";
+        context.fillStyle = "black";
+        context.textAlign = "center";
+        context.fillText(label, 128, 64);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
+        sprite.position.y = 2.5;
+        sprite.scale.set(6, 3, 1);
+        group.add(sprite);
+
+        // Shadow
+        const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.5, 32), new THREE.MeshBasicMaterial({ color: 0xeeeeee }));
+        shadow.rotation.x = -Math.PI / 2;
+        shadow.position.y = -1.1;
+        group.add(shadow);
+        
+        return group;
+    }
+
+    const gridHelper = new THREE.GridHelper(50, 50, 0xdddddd, 0xeeeeee);
+    scene.add(gridHelper);
+
+    const nodeCamera = createNode(-10, -5, "Camera");
+    const nodePerception = createNode(-10, 5, "Perception");
+    const nodePlanner = createNode(0, 0, "Path Planner");
+    const nodeDriver = createNode(10, 0, "Motor Driver");
+    const nodeBattery = createNode(0, 10, "Battery");
+
+    scene.add(nodeCamera, nodePerception, nodePlanner, nodeDriver, nodeBattery);
+
+    // --- Communication Visualization ---
+
+    const topics = [];
+    function createTopic(startNode, endNode, speed, density) {
+        const start = startNode.position.clone();
+        const end = endNode.position.clone();
+        const mid = start.clone().lerp(end, 0.5); mid.y += 2;
+        const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+        
+        // Guide line
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(20)), new THREE.LineBasicMaterial({ color: 0xcccccc }));
+        scene.add(line);
+
+        // Particles
+        const particleCount = density;
+        const posArray = new Float32Array(particleCount * 3);
+        const progressArray = new Float32Array(particleCount);
+        for(let i=0; i<particleCount; i++) progressArray[i] = Math.random();
+
+        const particleGeo = new THREE.BufferGeometry();
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particles = new THREE.Points(particleGeo, new THREE.PointsMaterial({ color: 0x000000, size: 0.25 }));
+        scene.add(particles);
+
+        topics.push({ mesh: particles, curve: curve, progress: progressArray, speed: speed });
+    }
+
+    createTopic(nodeCamera, nodePerception, 0.01, 40);
+    createTopic(nodePerception, nodePlanner, 0.008, 20);
+
+    const services = [];
+    function createService(nodeA, nodeB) {
+        const start = nodeA.position.clone();
+        const end = nodeB.position.clone();
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), dashedLineMat);
+        line.computeLineDistances();
+        scene.add(line);
+
+        const packet = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        packet.visible = false;
+        scene.add(packet);
+
+        services.push({ mesh: packet, start: start, end: end, state: 'idle', timer: 0 });
+    }
+
+    createService(nodePlanner, nodeBattery);
+
+    const actions = [];
+    function createAction(nodeA, nodeB) {
+        const start = nodeA.position.clone();
+        const end = nodeB.position.clone();
+        scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([start, end]), blackLineMat));
+
+        const barGroup = new THREE.Group();
+        barGroup.position.copy(end); barGroup.position.y += 3.5;
+        
+        // Bar Container
+        const frame = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(3, 0.5)), blackLineMat);
+        barGroup.add(frame, edges);
+
+        // Bar Fill
+        const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.3), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        fill.position.z = 0.01;
+        barGroup.add(fill);
+
+        // Label
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 128; canvas.height = 32;
+        ctx.font = "20px Times New Roman";
+        ctx.fillStyle = "black";
+        ctx.fillText("Action Status", 0, 24);
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
+        sprite.position.y = 0.6; sprite.scale.set(3, 0.75, 1);
+        barGroup.add(sprite);
+
+        scene.add(barGroup);
+        actions.push({ fill: fill, progress: 0 });
+    }
+
+    createAction(nodePlanner, nodeDriver);
+
+    // --- State Management ---
+    let currentStep = 0;
+
+    function changeStep(dir) {
+        const newStep = currentStep + dir;
+        if(newStep >= 0 && newStep < steps.length) {
+            currentStep = newStep;
+            updateUI();
+            moveCamera();
+        }
+    }
+
+    function updateUI() {
+        const data = steps[currentStep];
+        document.getElementById('content-area').innerHTML = `<h2>${data.title}</h2>${data.text}`;
+        document.getElementById('step-display').innerText = `${currentStep + 1} / ${steps.length}`;
+        document.getElementById('btn-prev').disabled = currentStep === 0;
+        document.getElementById('btn-next').disabled = currentStep === steps.length - 1;
+    }
+
+    function moveCamera() {
+        const targetPos = steps[currentStep].camPos;
+        const targetLook = steps[currentStep].camTarget;
+
+        new TWEEN.Tween(camera.position)
+            .to(targetPos, 1500)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+
+        new TWEEN.Tween(controls.target)
+            .to(targetLook, 1500)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+    }
+
+    // --- Animation Loop ---
+    function animate(time) {
+        requestAnimationFrame(animate);
+        TWEEN.update(time);
+        controls.update();
+
+        // 1. Topics
+        topics.forEach(t => {
+            const pos = t.mesh.geometry.attributes.position.array;
+            for(let i=0; i < t.progress.length; i++) {
+                t.progress[i] += t.speed;
+                if(t.progress[i] > 1) t.progress[i] = 0;
+                const p = t.curve.getPoint(t.progress[i]);
+                pos[i*3] = p.x; pos[i*3+1] = p.y; pos[i*3+2] = p.z;
+            }
+            t.mesh.geometry.attributes.position.needsUpdate = true;
+        });
+
+        // 2. Services
+        services.forEach(s => {
+            if(s.state === 'idle') { if(Math.random()<0.01) s.state='request'; }
+            else if (s.state === 'request') {
+                s.mesh.visible = true; s.timer += 0.05;
+                s.mesh.position.lerpVectors(s.start, s.end, s.timer);
+                if(s.timer>=1) { s.timer=0; s.state='processing'; }
+            } else if (s.state === 'processing') {
+                s.timer += 0.05; s.mesh.position.y = s.end.y + Math.sin(s.timer*20)*0.2;
+                if(s.timer>2) { s.timer=0; s.state='response'; }
+            } else if (s.state === 'response') {
+                s.timer += 0.05; s.mesh.position.lerpVectors(s.end, s.start, s.timer);
+                if(s.timer>=1) { s.timer=0; s.state='idle'; s.mesh.visible=false; }
+            }
+        });
+
+        // 3. Actions
+        actions.forEach(a => {
+            a.progress += 0.005;
+            if(a.progress > 1) a.progress = 0;
+            const width = 2.8 * a.progress;
+            a.fill.scale.x = width;
+            a.fill.position.x = -1.4 + (width/2);
+        });
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    });
+
+    // Init
+    updateUI();
+    animate();
+
+</script>
+</body>
+</html>

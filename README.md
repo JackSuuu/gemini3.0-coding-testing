@@ -16,6 +16,7 @@ The repository is structured to host multiple isolated test cases, allowing for 
 - **Stellar Shuttle**: An immersive Interstellar-inspired space simulation featuring a Ranger spacecraft, black hole visualization, and dynamic audio synthesis.
 - **Retro Typewritter Test:** A retro feeling typewritter type speed test.
 - **Pro Tennis 3D**: A high-fidelity 3D tennis simulation using Three.js, featuring realistic physics, dynamic lighting, and post-processing effects.
+- **ROS2 Demo**: An interactive demonstration of ROS2 concepts and robotics visualization.
 
 ## Usage
 
