@@ -17,6 +17,7 @@ The repository is structured to host multiple isolated test cases, allowing for 
 - **Retro Typewritter Test:** A retro feeling typewritter type speed test.
 - **Pro Tennis 3D**: A high-fidelity 3D tennis simulation using Three.js, featuring realistic physics, dynamic lighting, and post-processing effects.
 - **ROS2 Demo**: An interactive demonstration of ROS2 concepts and robotics visualization.
+- **Retro Noise Therapy**: A retro-styled ambient noise generator for relaxation and focus.
 
 ## Usage
 

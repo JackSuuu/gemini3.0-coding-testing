@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aura • Sonic Therapy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --metal-light: #e0e0e0;
+            --metal-dark: #b0b0b0;
+            --glow-color: rgba(255, 200, 150, 0.6);
+            --glow-strong: rgba(255, 180, 120, 0.9);
+            --screen-bg: #0a0908;
+            --text-amber: #ffccaa;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #2a2a2a 0%, #111 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Rajdhani', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* Prevent scroll on mobile */
+        }
+
+        /* --- Device Chassis (Responsive) --- */
+        .device-case {
+            width: 100%;
+            max-width: 380px;
+            height: 90vh;
+            max-height: 750px;
+            border-radius: 40px;
+            background: linear-gradient(135deg, #d4d4d4 0%, #f0f0f0 40%, #a8a8a8 100%);
+            box-shadow: 
+                -10px -10px 20px rgba(255,255,255,0.1),
+                10px 20px 40px rgba(0,0,0,0.6),
+                inset 0 0 0 2px rgba(255,255,255,0.5),
+                inset 0 0 40px rgba(0,0,0,0.1);
+            position: relative;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            /* Remove fixed scale, use fluid sizing */
+            transition: box-shadow 0.3s ease;
+        }
+
+        @media (max-height: 700px) {
+            .device-case {
+                border-radius: 0;
+                height: 100vh;
+                max-height: none;
+                padding: 15px;
+            }
+        }
+
+        /* Glass Overlay Effect */
+        .glass-surface {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 40px;
+            background: linear-gradient(120deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.0) 100%);
+            pointer-events: none;
+            z-index: 50;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+        @media (max-height: 700px) { .glass-surface { border-radius: 0; } }
+
+        /* --- Main Screen --- */
+        .screen-container {
+            background: var(--screen-bg);
+            border-radius: 16px;
+            padding: 15px;
+            flex: 0 0 180px; /* Fixed height for screen */
+            position: relative;
+            box-shadow: 
+                inset 2px 2px 10px rgba(0,0,0,0.8),
+                0 0 15px var(--glow-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: var(--text-amber);
+            border: 1px solid rgba(255, 200, 150, 0.2);
+            overflow: hidden;
+            transition: box-shadow 0.5s ease;
+            z-index: 51; /* Above glass for clarity */
+        }
+        
+        .screen-active {
+            box-shadow: 
+                inset 2px 2px 10px rgba(0,0,0,0.8),
+                0 0 25px var(--glow-strong);
+        }
+
+        .screen-bg-glow {
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,160,100,0.05) 0%, transparent 60%);
+            animation: pulse-glow 8s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        .digital-font {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* --- Layout Grid --- */
+        .controls-mid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 60px 1fr 60px; /* Adjusted col width for mobile */
+            gap: 10px;
+            min-height: 0; /* Allow shrinking */
+        }
+
+        /* --- Glass Buttons (Left) --- */
+        .btn-col {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 2px;
+            /* Hide scrollbar */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        .btn-col::-webkit-scrollbar { display: none; }
+
+        .glass-btn {
+            width: 100%;
+            height: 55px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 
+                3px 3px 6px rgba(0,0,0,0.1),
+                inset 1px 1px 2px rgba(255,255,255,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #555;
+            font-size: 0.55rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 20;
+        }
+        
+        .glass-btn i {
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+            color: #444;
+        }
+
+        .glass-btn:active, .glass-btn.active {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(1px);
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+            color: #222;
+        }
+
+        /* --- Jog Wheel --- */
+        .jog-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .jog-wheel {
+            width: 100%; /* Responsive width */
+            max-width: 160px;
+            aspect-ratio: 1/1;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                #d0d0d0 0%, #ffffff 10%, #d0d0d0 20%, #a0a0a0 30%, 
+                #d0d0d0 40%, #ffffff 50%, #d0d0d0 60%, #a0a0a0 70%, 
+                #d0d0d0 80%, #ffffff 90%, #d0d0d0 100%
+            );
+            box-shadow: 
+                -5px -5px 10px rgba(255,255,255,0.8),
+                5px 10px 20px rgba(0,0,0,0.4),
+                inset 0 0 0 2px rgba(255,255,255,0.5);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            cursor: grab;
+            touch-action: none;
+        }
+        
+        .jog-wheel:active { cursor: grabbing; }
+
+        .jog-inner {
+            width: 55%;
+            height: 55%;
+            border-radius: 50%;
+            background: conic-gradient(from 180deg, #c0c0c0 0%, #f0f0f0 25%, #b0b0b0 50%, #f0f0f0 75%, #c0c0c0 100%);
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2), 0 0 5px rgba(0,0,0,0.2);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .jog-center-btn {
+            width: 40%;
+            height: 40%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #333 0%, #111 100%);
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.2);
+        }
+
+        .jog-glow {
+            position: absolute;
+            width: 105%;
+            height: 105%;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 200, 150, 0.3);
+            box-shadow: 0 0 20px rgba(255, 180, 100, 0.2);
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        /* --- Waveform Side Panel --- */
+        .waveform-strip {
+            background: rgba(220, 220, 220, 0.4);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.4);
+            backdrop-filter: blur(5px);
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #visualizer-canvas {
+            width: 100%; height: 100%;
+            opacity: 0.6;
+        }
+
+        /* --- Bottom Transport Buttons --- */
+        .transport-area {
+            display: flex;
+            justify-content: space-around;
+            padding: 5px 20px;
+            z-index: 60;
+            margin-top: auto;
+        }
+
+        .metal-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: conic-gradient(from 135deg, #e0e0e0, #ffffff, #c0c0c0, #ffffff, #e0e0e0);
+            box-shadow: 
+                -4px -4px 10px rgba(255,255,255,0.8),
+                4px 4px 10px rgba(0,0,0,0.3),
+                inset 0 0 0 1px rgba(255,255,255,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .metal-btn:active {
+            transform: scale(0.96);
+        }
+
+        .rec-dot {
+            width: 14px; height: 14px;
+            background-color: #d63031;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+        
+        .stop-square {
+            width: 14px; height: 14px;
+            background-color: #2d3436;
+            border-radius: 2px;
+            box-shadow: inset 1px 1px 2px rgba(255,255,255,0.2);
+            z-index: 2;
+        }
+
+        .btn-label {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: #444;
+            font-weight: 600;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* --- Screen Typography --- */
+        .screen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.7rem;
+            opacity: 0.8;
+            border-bottom: 1px solid rgba(255,200,150,0.15);
+            padding-bottom: 8px;
+        }
+
+        .big-time {
+            font-size: 3rem;
+            line-height: 1;
+            font-weight: 400;
+            text-shadow: 0 0 10px rgba(255, 200, 150, 0.4);
+            margin: 10px 0;
+            letter-spacing: -2px;
+            text-align: center;
+        }
+        
+        .track-info { margin-top: auto; }
+        
+        .track-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        
+        .track-meta {
+            font-size: 0.7rem;
+            color: var(--text-amber);
+            opacity: 0.7;
+            display: flex;
+            gap: 10px;
+        }
+
+        .playing-indicator {
+            width: 6px; height: 6px;
+            background: #ff5e57;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ff5e57;
+            display: none;
+        }
+        .playing .playing-indicator { display: block; animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.4; } }
+        @keyframes pulse-glow { 0% { transform: scale(1); opacity: 0.05; } 50% { transform: scale(1.1); opacity: 0.1; } 100% { transform: scale(1); opacity: 0.05; } }
+        
+        /* Volume Bar */
+        .volume-display {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 20px;
+            width: 80px;
+        }
+        .vol-bar {
+            width: 100%;
+            background: rgba(255,200,150,0.2);
+            border-radius: 2px;
+            transition: height 0.2s;
+        }
+        .vol-bar.active {
+            background: var(--text-amber);
+            box-shadow: 0 0 5px var(--glow-color);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="device-case">
+        <div class="glass-surface"></div>
+
+        <!-- Top Screen -->
+        <div class="screen-container" id="mainScreen">
+            <div class="screen-bg-glow"></div>
+            
+            <div class="screen-header">
+                <span class="flex items-center gap-2">
+                    <div class="playing-indicator"></div>
+                    <span id="statusText">STANDBY</span>
+                </span>
+                <span>48.0 kHz</span>
+            </div>
+
+            <div class="big-time digital-font" id="timeDisplay">00:00:00</div>
+
+            <div class="track-info">
+                <div class="track-title" id="soundName">White Noise</div>
+                
+                <div class="flex justify-between items-end">
+                    <div class="track-meta digital-font">
+                        <span class="meta-item"><i class="fas fa-wave-square text-xs"></i> <span id="freqDisplay">H: 200Hz</span></span>
+                        <span class="meta-item"><i class="fas fa-infinity text-xs"></i> LOOP</span>
+                    </div>
+
+                    <!-- Volume Visualization on Screen -->
+                    <div class="volume-display" id="volumeBars">
+                        <!-- Bars injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Controls -->
+        <div class="controls-mid">
+            <!-- Left Side Buttons -->
+            <div class="btn-col">
+                <div class="glass-btn active" onclick="setNoiseType('white')" title="White Noise">
+                    <i class="fas fa-wind"></i>
+                    <span>WHITE</span>
+                </div>
+                <div class="glass-btn" onclick="setNoiseType('pink')" title="Pink Noise">
+                    <i class="fas fa-water"></i>
+                    <span>PINK</span>
+                </div>
+                <div class="glass-btn" onclick="setNoiseType('brown')" title="Brownian Noise">
+                    <i class="fas fa-mountain"></i>
+                    <span>BROWN</span>
+                </div>
+                <div class="glass-btn" onclick="setNoiseType('ocean')" title="Ocean Waves">
+                    <i class="fas fa-water text-blue-300"></i>
+                    <span>OCEAN</span>
+                </div>
+                <div class="glass-btn" onclick="setNoiseType('fire')" title="Campfire">
+                    <i class="fas fa-fire text-orange-400"></i>
+                    <span>FIRE</span>
+                </div>
+            </div>
+
+            <!-- Jog Wheel Area -->
+            <div class="jog-container">
+                <div class="jog-glow" id="jogGlow"></div>
+                <div class="jog-wheel" id="jogWheel">
+                    <!-- Arrows removed for cleaner look, functionality remains -->
+                    <div class="jog-inner">
+                        <div class="jog-center-btn"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Waveform Strip -->
+            <div class="waveform-strip">
+                <div class="ruler-ticks">
+                    <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+                    <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+                    <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+                    <div class="tick"></div><div class="tick"></div><div class="tick"></div>
+                </div>
+                <canvas id="visualizer-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Bottom Transport -->
+        <div class="transport-area">
+            <div class="relative">
+                <div class="metal-btn" id="playBtn">
+                    <div class="rec-dot" id="playIcon"></div>
+                </div>
+                <div class="btn-label">PLAY/PAUSE</div>
+            </div>
+            
+            <div class="relative">
+                <div class="metal-btn" id="stopBtn">
+                    <div class="stop-square"></div>
+                </div>
+                <div class="btn-label">STOP</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Audio Context Setup ---
+        let audioCtx;
+        let masterGain;
+        let activeSourceNodes = [];
+        let isPlaying = false;
+        let volume = 0.5;
+        let startTime = 0;
+        let timerInterval;
+        let currentType = 'white';
+
+        // Initialize Audio
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioCtx.createGain();
+                masterGain.connect(audioCtx.destination);
+                masterGain.gain.value = volume;
+            }
+        }
+
+        // --- Synthesis Generators ---
+
+        // 1. Basic Noise Generator (White, Pink, Brown)
+        function createNoiseBuffer(type) {
+            const bufferSize = audioCtx.sampleRate * 4; // 4 seconds for better randomization
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                
+                if (type === 'white') {
+                    data[i] = white;
+                } else if (type === 'pink') {
+                    // Paul Kellett's refined method
+                    let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+                    // Note: Simplified for buffer fill without persistent state across calls
+                    // Real pink noise needs state, but for a loop, this is acceptable approximation
+                    data[i] = (lastOut + (0.02 * white)) / 1.02; 
+                    lastOut = data[i];
+                    data[i] *= 3.5; 
+                } else if (type === 'brown') {
+                    data[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = data[i];
+                    data[i] *= 3.5;
+                }
+            }
+            return buffer;
+        }
+
+        // 2. Play Sound Logic
+        function playNoise() {
+            initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            stopNoise(false); // Clean up existing, don't update UI state yet
+
+            if (currentType === 'ocean') {
+                playOcean();
+            } else if (currentType === 'fire') {
+                playFire();
+            } else {
+                playBasicNoise(currentType);
+            }
+
+            // Fade In
+            masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            masterGain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 1.5);
+
+            isPlaying = true;
+            updateUIState(true);
+            startTimer();
+        }
+
+        // Helper: Basic Colors
+        function playBasicNoise(type) {
+            const buffer = createNoiseBuffer(type);
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            source.connect(masterGain);
+            source.start();
+            activeSourceNodes.push(source);
+        }
+
+        // Helper: Ocean (Pink Noise + LFO Filter)
+        function playOcean() {
+            // 1. Pink Noise Source
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0; 
+            for (let i = 0; i < bufferSize; i++) { 
+                let white = Math.random() * 2 - 1; 
+                b0 = 0.99886 * b0 + white * 0.0555179;
+                b1 = 0.99332 * b1 + white * 0.0750759;
+                b2 = 0.96900 * b2 + white * 0.1538520;
+                b3 = 0.86650 * b3 + white * 0.3104856;
+                b4 = 0.55000 * b4 + white * 0.5329522;
+                b5 = -0.7616 * b5 - white * 0.0168980;
+                data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                data[i] *= 0.11; 
+            }
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            noise.loop = true;
+
+            // 2. Lowpass Filter for the "muffle" of waves
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+
+            // 3. Gain node for the wave surge
+            const waveGain = audioCtx.createGain();
+            waveGain.gain.value = 0.5;
+
+            // 4. LFO to modulate gain (The wave crashing)
+            const lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.15; // 0.15Hz wave cycle
+
+            // LFO gain to control modulation depth
+            const lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 0.4; // Modulation depth
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(waveGain.gain);
+
+            // Connect graph
+            noise.connect(filter);
+            filter.connect(waveGain);
+            waveGain.connect(masterGain);
+
+            noise.start();
+            lfo.start();
+
+            activeSourceNodes.push(noise, lfo);
+        }
+
+        // Helper: Fire (Brown Noise + Random Clicks)
+        function playFire() {
+            // 1. Brown Noise Rumble
+            const rumbleBuffer = createNoiseBuffer('brown');
+            const rumble = audioCtx.createBufferSource();
+            rumble.buffer = rumbleBuffer;
+            rumble.loop = true;
+            
+            const rumbleFilter = audioCtx.createBiquadFilter();
+            rumbleFilter.type = 'lowpass';
+            rumbleFilter.frequency.value = 350; // Deep rumble
+            
+            rumble.connect(rumbleFilter);
+            rumbleFilter.connect(masterGain);
+            rumble.start();
+            activeSourceNodes.push(rumble);
+
+            // 2. Crackle (Random High Impulse)
+            const crackleLen = audioCtx.sampleRate * 3;
+            const cBuf = audioCtx.createBuffer(1, crackleLen, audioCtx.sampleRate);
+            const cData = cBuf.getChannelData(0);
+            for(let i=0; i<crackleLen; i++) {
+                // Occasional sharp spike
+                if(Math.random() > 0.9995) {
+                    cData[i] = (Math.random() * 0.5) + 0.5;
+                    // Followed by silence
+                } else {
+                    cData[i] = 0;
+                }
+            }
+            const crackle = audioCtx.createBufferSource();
+            crackle.buffer = cBuf;
+            crackle.loop = true;
+
+            const crackleFilter = audioCtx.createBiquadFilter();
+            crackleFilter.type = 'highpass';
+            crackleFilter.frequency.value = 1000;
+
+            const crackleGain = audioCtx.createGain();
+            crackleGain.gain.value = 0.8;
+
+            crackle.connect(crackleFilter);
+            crackleFilter.connect(crackleGain);
+            crackleGain.connect(masterGain);
+            crackle.start();
+            activeSourceNodes.push(crackle);
+        }
+
+        function stopNoise(fullStop = true) {
+            // Fade out
+            if (masterGain) {
+                masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
+                masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+            }
+
+            // CRITICAL FIX: Snapshot active nodes to stop ONLY them.
+            // If we use the global variable inside setTimeout, we might stop NEW nodes added by playNoise().
+            const nodesToStop = [...activeSourceNodes];
+            activeSourceNodes = []; // Clear global immediately for new players
+
+            // Disconnect old nodes after short delay
+            setTimeout(() => {
+                nodesToStop.forEach(node => {
+                    try { node.stop(); } catch(e){}
+                    try { node.disconnect(); } catch(e){}
+                });
+            }, 350);
+
+            if (fullStop) {
+                isPlaying = false;
+                updateUIState(false);
+                stopTimer();
+            }
+        }
+
+        // --- UI Logic ---
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusText = document.getElementById('statusText');
+        const screen = document.getElementById('mainScreen');
+        const jogGlow = document.getElementById('jogGlow');
+
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) stopNoise(true);
+            else playNoise();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            stopNoise(true);
+            resetTimer();
+        });
+
+        function updateUIState(playing) {
+            if (playing) {
+                playIcon.style.backgroundColor = '#ff5e57';
+                playIcon.style.boxShadow = '0 0 10px #ff5e57';
+                statusText.innerText = 'PLAYING';
+                statusText.style.color = '#ffccaa';
+                screen.classList.add('screen-active');
+                jogGlow.style.borderColor = 'rgba(255, 200, 150, 0.6)';
+                jogGlow.style.boxShadow = '0 0 25px rgba(255, 180, 100, 0.4)';
+            } else {
+                playIcon.style.backgroundColor = '#d63031';
+                playIcon.style.boxShadow = 'none';
+                statusText.innerText = 'STANDBY';
+                statusText.style.color = '#777';
+                screen.classList.remove('screen-active');
+                jogGlow.style.borderColor = 'rgba(255, 200, 150, 0.1)';
+                jogGlow.style.boxShadow = 'none';
+            }
+        }
+
+        function setNoiseType(type) {
+            currentType = type;
+            document.querySelectorAll('.glass-btn').forEach(btn => btn.classList.remove('active'));
+            
+            const titles = {
+                'white': 'White Noise', 
+                'pink': 'Pink Noise', 
+                'brown': 'Brown Noise',
+                'ocean': 'Ocean Waves',
+                'fire': 'Campfire'
+            };
+            document.getElementById('soundName').innerText = titles[type];
+            
+            // Simplified active state logic
+            const btns = document.querySelectorAll('.glass-btn');
+            const map = {'white':0, 'pink':1, 'brown':2, 'ocean':3, 'fire':4};
+            if (btns[map[type]]) btns[map[type]].classList.add('active');
+
+            if (isPlaying) {
+                playNoise(); // seamlessly switch
+            }
+        }
+
+        // --- Timer ---
+        function startTimer() {
+            const start = Date.now() - startTime;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const diff = Date.now() - start;
+                startTime = diff;
+                updateTimeDisplay(diff);
+            }, 1000);
+        }
+
+        function stopTimer() { clearInterval(timerInterval); }
+        function resetTimer() { startTime = 0; updateTimeDisplay(0); }
+
+        function updateTimeDisplay(ms) {
+            const date = new Date(ms);
+            const h = String(date.getUTCHours()).padStart(2, '0');
+            const m = String(date.getUTCMinutes()).padStart(2, '0');
+            const s = String(date.getUTCSeconds()).padStart(2, '0');
+            document.getElementById('timeDisplay').innerText = `${h}:${m}:${s}`;
+        }
+
+        // --- Jog Wheel Volume Control (Touch + Mouse) ---
+        const wheel = document.getElementById('jogWheel');
+        let isDragging = false;
+        let startY = 0;
+        let startVol = 0.5;
+
+        function startDrag(y) {
+            isDragging = true;
+            startY = y;
+            startVol = volume;
+            wheel.style.cursor = 'grabbing';
+        }
+
+        function moveDrag(y) {
+            if (!isDragging) return;
+            const deltaY = startY - y; 
+            const change = deltaY * 0.005;
+            let newVol = startVol + change;
+            if (newVol > 1) newVol = 1;
+            if (newVol < 0) newVol = 0;
+            volume = newVol;
+            if (masterGain) masterGain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            updateVolumeUI();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            wheel.style.cursor = 'grab';
+        }
+
+        // Mouse Events
+        wheel.addEventListener('mousedown', (e) => startDrag(e.clientY));
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('mousemove', (e) => moveDrag(e.clientY));
+
+        // Touch Events
+        wheel.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            startDrag(e.touches[0].clientY);
+        }, {passive: false});
+        
+        window.addEventListener('touchend', endDrag);
+        window.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            moveDrag(e.touches[0].clientY);
+        }, {passive: false});
+
+
+        // Init Volume UI
+        const volContainer = document.getElementById('volumeBars');
+        for(let i=0; i<10; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'vol-bar';
+            bar.style.height = (4 + (i*1.5)) + 'px';
+            volContainer.appendChild(bar);
+        }
+
+        function updateVolumeUI() {
+            const bars = document.querySelectorAll('.vol-bar');
+            const activeCount = Math.floor(volume * 10);
+            bars.forEach((bar, index) => {
+                if (index < activeCount) bar.classList.add('active');
+                else bar.classList.remove('active');
+            });
+            wheel.style.transform = `rotate(${(volume * 270) - 135}deg)`;
+        }
+        updateVolumeUI();
+
+        // --- Visualizer ---
+        const canvas = document.getElementById('visualizer-canvas');
+        const ctx = canvas.getContext('2d');
+        let offset = 0;
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function drawVisualizer() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!isPlaying) {
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2, 0);
+                ctx.lineTo(canvas.width / 2, canvas.height);
+                ctx.strokeStyle = "rgba(100, 100, 100, 0.2)";
+                ctx.stroke();
+            } else {
+                ctx.beginPath();
+                const centerY = canvas.width / 2;
+                for (let y = 0; y < canvas.height; y+=2) {
+                    let freq = 0.05;
+                    if (currentType === 'ocean') freq = 0.02;
+                    if (currentType === 'fire') freq = 0.1;
+
+                    const amplitude = (volume * 15) * (Math.sin(y * freq + offset) + Math.sin(y * (freq*2) - offset));
+                    const x = centerY + amplitude + (Math.random() * 2);
+                    
+                    if (y===0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = "rgba(80, 80, 80, 0.8)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                offset += 0.1;
+            }
+            requestAnimationFrame(drawVisualizer);
+        }
+        drawVisualizer();
+
+    </script>
+</body>
+</html>
